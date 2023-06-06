@@ -19,7 +19,7 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt
-
+          working-directory: ./hw1
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -38,6 +38,7 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
+          working-directory: ./hw1
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
