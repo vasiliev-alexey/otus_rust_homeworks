@@ -8,9 +8,6 @@ on:
 jobs:
   fmt:
     runs-on: ubuntu-latest
-    env:
-      working-directory: ./hw2
-
     steps:
       - uses: actions/checkout@v2
 
@@ -23,6 +20,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
+          args: --manifest-path ./hw2/Cargo.toml
 
   clippy:
     runs-on: ubuntu-latest
@@ -43,6 +41,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
+          args: --manifest-path ./hw2/Cargo.toml
 
   test:
     runs-on: ubuntu-latest
@@ -63,3 +62,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --manifest-path ./hw2/Cargo.toml
