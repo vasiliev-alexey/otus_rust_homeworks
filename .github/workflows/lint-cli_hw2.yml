@@ -17,7 +17,8 @@ jobs:
           override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
+      - name: Run fmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --manifest-path ./hw2/Cargo.toml
@@ -58,7 +59,7 @@ jobs:
           override: true
 
 
-      - name: Run clippy
+      - name: Run test
         uses: actions-rs/cargo@v1
         with:
           command: test
