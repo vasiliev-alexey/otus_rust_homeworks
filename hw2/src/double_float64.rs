@@ -3,7 +3,7 @@ use std::ops::Mul;
 /// и возвращает 64-х битное число с плавающей точкой, равное удвоенному входному.
 #[allow(dead_code)]
 fn double_float64(input: f32) -> f64 {
-    input.mul(2.0) as f64
+    (input as f64).mul(2.0)
 }
 
 #[cfg(test)]
@@ -14,5 +14,9 @@ mod tests {
     fn test_double_float64() {
         assert_eq!(double_float64(1_f32), 2_f64);
         assert_eq!(double_float64(0_f32), 0_f64);
+        assert_eq!(
+            double_float64(f32::MAX),
+            (f32::MAX as f64) + (f32::MAX as f64)
+        );
     }
 }

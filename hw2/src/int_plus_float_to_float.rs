@@ -3,7 +3,7 @@ use std::ops::Add;
 /// Возвращает 64-х битное число с плавающей точкой, равное сумме входных.
 #[allow(dead_code)]
 fn int_plus_float_to_float(int_param: u32, float_param: f32) -> f64 {
-    float_param.add(int_param as f32) as f64
+    (float_param as f64).add(int_param as f64)
 }
 
 #[cfg(test)]
@@ -16,5 +16,6 @@ mod tests {
         assert_eq!(int_plus_float_to_float(0_u32, 0_f32), 0_f64);
         assert_eq!(int_plus_float_to_float(1_u32, 0_f32), 1_f64);
         assert_eq!(int_plus_float_to_float(1_u32, -1_f32), 0_f64);
+        assert_eq!(int_plus_float_to_float(u32::MAX, 1.0), 4294967296.0);
     }
 }

@@ -17,5 +17,6 @@ mod tests {
         assert_eq!(int_plus_float_to_int(0_u32, 0_f32), 0_u64);
         assert_eq!(int_plus_float_to_int(1_u32, 0_f32), 1_u64);
         assert_eq!(int_plus_float_to_int(1_u32, -1_f32), 0_u64);
+        assert_eq!(int_plus_float_to_int(u32::MAX, 1.0), 4294967296_u64);
     }
 }
