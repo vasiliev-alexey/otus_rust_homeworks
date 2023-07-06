@@ -1,6 +1,6 @@
 // 3. Принимает слайс и число N. Возвращает ссылку на N-ый элемент слайса с конца.
-fn get_element_from_end<T>(values: &mut [T], n: usize) -> &T {
-    if n >= values.len() {
+pub fn get_element_from_end<T>(values: &mut [T], n: usize) -> &T {
+    if n >= values.len() || n == 0 {
         panic!("Index out of bounds");
     }
     &values[values.len() - 1 - n]

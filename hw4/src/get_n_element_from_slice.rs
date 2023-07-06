@@ -1,5 +1,5 @@
-fn get_element_from_slice<T>(values: &mut [T], n: usize) -> &mut T {
-    if n >= values.len() {
+pub fn get_element_from_slice<T>(values: &mut [T], n: usize) -> &mut T {
+    if n >= values.len() || n == 0 {
         panic!("Index out of bounds");
     }
     &mut values[n]

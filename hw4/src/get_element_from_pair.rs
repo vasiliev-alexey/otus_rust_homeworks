@@ -1,8 +1,8 @@
-fn get_element_from_pair<T>(values: &mut (T, T), is_next: bool) -> &mut T {
+pub fn get_element_from_pair<T>(values: &mut (T, T), is_next: bool) -> &mut T {
     if is_next {
-        return &mut values.1;
+        &mut values.1
     } else {
-        return &mut values.0;
+        &mut values.0
     }
 }
 
