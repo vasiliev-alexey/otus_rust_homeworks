@@ -3,9 +3,13 @@ name: sanitizer HW 3
 on:
   push:
     branches:
-      - hw5
+      - hw*
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+
 
 jobs:
+
   fmt:
     runs-on: ubuntu-latest
     steps:
@@ -21,7 +25,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./hw5/Cargo.toml
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
 
   clippy:
     runs-on: ubuntu-latest
@@ -33,13 +37,13 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: clippy
+          components: clippyx`
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path ./hw5/Cargo.toml
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
 
   test:
     runs-on: ubuntu-latest
@@ -55,4 +59,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./hw5/Cargo.toml
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
