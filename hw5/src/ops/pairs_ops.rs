@@ -1,6 +1,6 @@
-type Pair = (i32, i32);
+pub(crate) type Pair = (i32, i32);
 
-trait PairOps {
+pub trait PairOps {
     fn default_pair() -> Self;
     fn pair_vector_sum(&mut self, b: Pair) -> &Pair;
     fn pair_scalar_sum(self, b: Pair) -> i32;
