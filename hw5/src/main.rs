@@ -6,7 +6,7 @@ mod ops;
 
 fn main() {
     let mut counter = UnsignedCounterOps::default();
-    println!("{}", counter.next(10));
+    println!("{}", counter.next());
 
     let mut vector: Vec3 = Vec3Ops::default_vec3();
     println!("{:?}", vector.vec3_vector_sum([1, 2, 3]));

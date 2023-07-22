@@ -1,45 +1,43 @@
 pub type SignedCounter = isize;
 pub type UnsignedCounter = usize;
 
+#[derive(Default)]
 pub struct SignedCounterOps {
     counter: SignedCounter,
 }
+#[derive(Default)]
 pub struct UnsignedCounterOps {
     counter: UnsignedCounter,
 }
 
-pub trait CounterOps<T> {
-    fn default() -> Self;
-    fn next(&mut self, increment: T) -> T;
-    fn prev(&mut self, decrement: T) -> T;
+pub trait CounterOps {
+    type Output;
+    fn next(&mut self) -> Self::Output;
+    fn prev(&mut self) -> Self::Output;
 }
 
-impl CounterOps<SignedCounter> for SignedCounterOps {
-    fn default() -> SignedCounterOps {
-        SignedCounterOps { counter: 0 }
-    }
-
-    fn next(&mut self, increment: SignedCounter) -> SignedCounter {
-        self.counter += increment;
+impl CounterOps for SignedCounterOps {
+    type Output = SignedCounter;
+    fn next(&mut self) -> Self::Output {
+        self.counter += 1;
         self.counter
     }
-    fn prev(&mut self, decrement: SignedCounter) -> SignedCounter {
-        self.counter -= decrement;
+
+    fn prev(&mut self) -> Self::Output {
+        self.counter -= 1;
         self.counter
     }
 }
 
-impl CounterOps<UnsignedCounter> for UnsignedCounterOps {
-    fn default() -> UnsignedCounterOps {
-        UnsignedCounterOps { counter: 0 }
-    }
-
-    fn next(&mut self, increment: UnsignedCounter) -> UnsignedCounter {
-        self.counter += increment;
+impl CounterOps for UnsignedCounterOps {
+    type Output = UnsignedCounter;
+    fn next(&mut self) -> Self::Output {
+        self.counter += 1;
         self.counter
     }
-    fn prev(&mut self, decrement: UnsignedCounter) -> UnsignedCounter {
-        self.counter = self.counter.saturating_sub(decrement);
+
+    fn prev(&mut self) -> Self::Output {
+        self.counter = self.counter.saturating_sub(1);
         self.counter
     }
 }
@@ -63,24 +61,25 @@ mod unit_tests {
     #[test]
     fn test_next_signed() {
         let mut counter = SignedCounterOps::default();
-        assert_eq!(counter.next(1), 1);
-        assert_eq!(counter.next(-1), 0);
-        assert_eq!(counter.next(2), 2);
+        assert_eq!(counter.next(), 1);
+        assert_eq!(counter.next(), 2);
+        assert_eq!(counter.next(), 3);
     }
 
     #[test]
     fn test_next_unsigned() {
         let mut counter = UnsignedCounterOps::default();
-        assert_eq!(counter.next(0), 0);
-        assert_eq!(counter.next(1), 1);
-        assert_eq!(counter.next(10), 11);
+        assert_eq!(counter.next(), 1);
+        assert_eq!(counter.next(), 2);
+        assert_eq!(counter.next(), 3);
     }
 
     #[test]
     fn test_prev_signed() {
         let mut counter = SignedCounterOps::default();
-        assert_eq!(counter.prev(1), -1);
-        assert_eq!(counter.prev(1), -2);
-        assert_eq!(counter.prev(-1), -1);
+        assert_eq!(counter.next(), 1);
+        assert_eq!(counter.next(), 2);
+        assert_eq!(counter.prev(), 1);
+        assert_eq!(counter.prev(), 0);
     }
 }
