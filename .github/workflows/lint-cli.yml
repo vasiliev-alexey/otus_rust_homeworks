@@ -1,14 +1,17 @@
-name: lint cli
+name: sanitizer for homework tasks
 
 on:
   push:
     branches:
-      - hw1
+      - hw*
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+
 
 jobs:
+
   fmt:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
 
@@ -18,16 +21,14 @@ jobs:
           override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
+      - name: Run fmt
+        uses: actions-rs/cargo@v1
         with:
-          args: --manifest-path ./hw1/Cargo.toml
           command: fmt
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
 
   clippy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./hw1
     steps:
       - uses: actions/checkout@v2
 
@@ -41,5 +42,21 @@ jobs:
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
-          args: --manifest-path ./hw1/Cargo.toml
           command: clippy
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Run test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
