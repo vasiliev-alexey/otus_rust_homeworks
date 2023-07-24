@@ -17,8 +17,15 @@ impl Item {
 pub struct Tuple(u32, f32, f64);
 pub struct Array([f64; 3]);
 
+trait Indexed {
+    fn get_item(&self, item: Item) -> f64;
+    fn set_item(&mut self, item: Item, value: f64);
+}
+
 trait Container3Elements {
-    fn default_values() -> Self;
+    fn default_values() -> Self
+    where
+        Self: Sized;
     fn is_default(&self) -> bool {
         self.get_item(Item::First) == Default::default()
             && self.get_item(Item::Second) == Default::default()
@@ -71,13 +78,13 @@ impl Container3Elements for Array {
 mod tests_container {
     use super::*;
 
-    fn check_container_default_values<T: Container3Elements>(container: T) {
+    fn check_container_default_values(container: &dyn Container3Elements) {
         assert_eq!(0.0, container.get_item(Item::First));
         assert_eq!(0.0, container.get_item(Item::Second));
         assert_eq!(0.0, container.get_item(Item::Third));
     }
 
-    fn check_container_sum<T: Container3Elements>(container: &T, sum: f64) {
+    fn check_container_sum(container: &dyn Container3Elements, sum: f64) {
         assert_eq!(container.sum(), sum);
     }
 
@@ -95,8 +102,8 @@ mod tests_container {
 
     #[test]
     fn test_container_default_values() {
-        check_container_default_values(Tuple::default_values());
-        check_container_default_values(Array::default_values());
+        check_container_default_values(&Tuple::default_values());
+        check_container_default_values(&Array::default_values());
     }
 }
 
