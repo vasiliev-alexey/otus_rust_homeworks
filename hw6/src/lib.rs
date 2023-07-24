@@ -103,7 +103,7 @@ mod tests_container {
     #[test]
     fn test_container_default_values() {
         check_container_default_values(&Tuple::default_values());
-        check_container_default_values(&Array::default_values());
+        check_container_default_values(&Array::kdefault_values());
     }
 }
 
