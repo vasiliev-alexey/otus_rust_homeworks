@@ -15,21 +15,12 @@ impl Item {
 }
 
 pub struct Tuple(u32, f32, f64);
+
 pub struct Array([f64; 3]);
 
-trait Indexed {
-    fn get_item(&self, item: Item) -> f64;
-    fn set_item(&mut self, item: Item, value: f64);
-}
-
-trait Container3Elements {
-    fn default_values() -> Self
-    where
-        Self: Sized;
+trait Container3Elements: Default + PartialEq<Self> {
     fn is_default(&self) -> bool {
-        self.get_item(Item::First) == Default::default()
-            && self.get_item(Item::Second) == Default::default()
-            && self.get_item(Item::Third) == Default::default()
+        Self::default() == *self
     }
     fn sum(&self) -> f64 {
         self.get_item(Item::First) + self.get_item(Item::Second) + self.get_item(Item::Third)
@@ -38,11 +29,21 @@ trait Container3Elements {
     fn set_item(&mut self, item: Item, value: f64);
 }
 
-impl Container3Elements for Tuple {
-    fn default_values() -> Self {
+impl Default for Tuple {
+    fn default() -> Self {
         Self(0, 0.0, 0.0)
     }
+}
 
+impl PartialEq<Self> for Tuple {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_item(Item::First) == other.get_item(Item::First)
+            && self.get_item(Item::Second) == other.get_item(Item::Second)
+            && self.get_item(Item::Third) == other.get_item(Item::Third)
+    }
+}
+
+impl Container3Elements for Tuple {
     fn get_item(&self, item: Item) -> f64 {
         match item {
             Item::First => self.0 as _,
@@ -60,11 +61,21 @@ impl Container3Elements for Tuple {
     }
 }
 
-impl Container3Elements for Array {
-    fn default_values() -> Self {
+impl Default for Array {
+    fn default() -> Self {
         Self([0.0; 3])
     }
+}
 
+impl PartialEq<Self> for Array {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_item(Item::First) == other.get_item(Item::First)
+            && self.get_item(Item::Second) == other.get_item(Item::Second)
+            && self.get_item(Item::Third) == other.get_item(Item::Third)
+    }
+}
+
+impl Container3Elements for Array {
     fn get_item(&self, item: Item) -> f64 {
         self.0[item.index()]
     }
@@ -78,13 +89,13 @@ impl Container3Elements for Array {
 mod tests_container {
     use super::*;
 
-    fn check_container_default_values(container: &dyn Container3Elements) {
+    fn check_container_default_values<T: Container3Elements>(container: &T) {
         assert_eq!(0.0, container.get_item(Item::First));
         assert_eq!(0.0, container.get_item(Item::Second));
         assert_eq!(0.0, container.get_item(Item::Third));
     }
 
-    fn check_container_sum(container: &dyn Container3Elements, sum: f64) {
+    fn check_container_sum<T: Container3Elements>(container: &T, sum: f64) {
         assert_eq!(container.sum(), sum);
     }
 
@@ -102,8 +113,8 @@ mod tests_container {
 
     #[test]
     fn test_container_default_values() {
-        check_container_default_values(&Tuple::default_values());
-        check_container_default_values(&Array::default_values());
+        check_container_default_values(&Tuple::default());
+        check_container_default_values(&Array::default());
     }
 }
 
@@ -113,7 +124,7 @@ mod tests_array {
 
     #[test]
     fn test_array_default_values() {
-        let arr = Array::default_values();
+        let arr = Array::default();
         assert_eq!([0.0, 0.0, 0.0], arr.0);
     }
 
@@ -150,7 +161,7 @@ mod tests_tuple {
 
     #[test]
     fn test_tuple_default_values() {
-        let tup = Tuple::default_values();
+        let tup = Tuple::default();
         assert_eq!(0, tup.0);
         assert_eq!(0.0, tup.1);
         assert_eq!(0.0, tup.2);
