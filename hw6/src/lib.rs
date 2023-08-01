@@ -13,9 +13,9 @@ impl Item {
         }
     }
 }
-
+#[derive(PartialEq)]
 pub struct Tuple(u32, f32, f64);
-
+#[derive(PartialEq)]
 pub struct Array([f64; 3]);
 
 trait Container3Elements: Default + PartialEq<Self> {
@@ -32,14 +32,6 @@ trait Container3Elements: Default + PartialEq<Self> {
 impl Default for Tuple {
     fn default() -> Self {
         Self(0, 0.0, 0.0)
-    }
-}
-
-impl PartialEq<Self> for Tuple {
-    fn eq(&self, other: &Self) -> bool {
-        self.get_item(Item::First) == other.get_item(Item::First)
-            && self.get_item(Item::Second) == other.get_item(Item::Second)
-            && self.get_item(Item::Third) == other.get_item(Item::Third)
     }
 }
 
@@ -64,14 +56,6 @@ impl Container3Elements for Tuple {
 impl Default for Array {
     fn default() -> Self {
         Self([0.0; 3])
-    }
-}
-
-impl PartialEq<Self> for Array {
-    fn eq(&self, other: &Self) -> bool {
-        self.get_item(Item::First) == other.get_item(Item::First)
-            && self.get_item(Item::Second) == other.get_item(Item::Second)
-            && self.get_item(Item::Third) == other.get_item(Item::Third)
     }
 }
 
