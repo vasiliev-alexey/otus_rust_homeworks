@@ -26,21 +26,21 @@ fn increased_by_first_item<'a>(data: &[usize], n: &'a mut usize) -> &'a mut usiz
     n
 }
 
-struct TwoValues<'a> {
+struct TwoValues<'a, 'b> {
     first: &'a usize,
-    second: &'a usize,
+    second: &'b usize,
 }
 
-impl<'a> TwoValues<'a> {
-    pub fn new(first: &'a usize, second: &'a usize) -> Self {
+impl<'a, 'b> TwoValues<'a, 'b> {
+    pub fn new(first: &'a usize, second: &'b usize) -> Self {
         Self { first, second }
     }
 
-    pub fn get_first(&self) -> &usize {
+    pub fn get_first(&self) -> &'a usize {
         self.first
     }
 
-    pub fn get_second(&self) -> &'a usize {
+    pub fn get_second(&self) -> &'b usize {
         self.second
     }
 }
@@ -68,5 +68,17 @@ mod unit_tests {
     fn test_nth_item() {
         let arr = [2, 4, 8, 16];
         assert_eq!(*nth_item(&arr, &2), 8_usize);
+    }
+
+    #[test]
+    fn test_from_pr() {
+        let c;
+        let b = 4;
+        {
+            let a = 3;
+            let values = TwoValues::new(&a, &b);
+            c = values.get_second();
+        }
+        println!("{}", c);
     }
 }
