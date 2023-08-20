@@ -5,9 +5,9 @@ use proc_macro2::{Ident, Span};
 pub fn even_len_name_func_invoke(input: TokenStream) -> TokenStream {
     let even_func_name_idents = input
         .into_iter()
-        .map(|name| name.to_string().replace('\"', ""))
-        .filter(|x| x.to_string().len() % 2 == 0)
-        .map(|name| Ident::new(&name, Span::call_site()))
+        .map(|func_name| func_name.to_string().replace('\"', ""))
+        .filter(|func_name| func_name.to_string().len() % 2 == 0)
+        .map(|func_name| Ident::new(&func_name, Span::call_site()))
         .collect::<Vec<_>>();
     TokenStream::from(quote::quote! {
     (  #(#even_func_name_idents() , )* )
