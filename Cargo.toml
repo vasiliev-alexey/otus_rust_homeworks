@@ -5,8 +5,25 @@ members = [
     "hw2",
     "hw3",
     "hw4",
-    "hw6",
     "hw5",
+    "hw6",
     "hw7",
+    "hw8",
     "practice"
 ]
+
+resolver = "2"
+
+
+[workspace.package]
+version = "1.2.3"
+authors = ["vasiliev-alexey"]
+description = "Rust Developer. Basic"
+documentation = "https://github.com/vasiliev-alexey/otus_rust_homeworks"
+license = "MIT"
+edition = "2021"
+rust-version = "1.72.0"
+homepage = "https://github.com/vasiliev-alexey/otus_rust_homeworks"
+repository = "https://github.com/vasiliev-alexey/otus_rust_homeworks"
+readme = "README.md"
+keywords = ["rust", "homeworks"]
