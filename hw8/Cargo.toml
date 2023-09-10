@@ -1,0 +1,17 @@
+[package]
+name = "hw8"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+task2 = { path = "src/task2" }
+
+
+
