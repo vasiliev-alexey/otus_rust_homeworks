@@ -25,7 +25,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
+          args: --manifest-path ./homeworks/${{env.BRANCH_NAME}}/Cargo.toml
 
   clippy:
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
+          args: --manifest-path ./homeworks/${{env.BRANCH_NAME}}/Cargo.toml
 
   test:
     runs-on: ubuntu-latest
@@ -59,4 +59,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./${{env.BRANCH_NAME}}/Cargo.toml
+          args: --manifest-path ./homeworks/${{env.BRANCH_NAME}}/Cargo.toml
