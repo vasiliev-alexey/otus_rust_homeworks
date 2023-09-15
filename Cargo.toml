@@ -1,15 +1,15 @@
 [workspace]
 
 members = [
-    "hw1",
-    "hw2",
-    "hw3",
-    "hw4",
-    "hw5",
-    "hw6",
-    "hw7",
-    "hw9",
-    "hw8",
+    "homeworks/hw1",
+    "homeworks/hw2",
+    "homeworks/hw3",
+    "homeworks/hw4",
+    "homeworks/hw5",
+    "homeworks/hw6",
+    "homeworks/hw7",
+    "homeworks/hw9",
+    "homeworks/hw8",
     "practice"
 ]
 
