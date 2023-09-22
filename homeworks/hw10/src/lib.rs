@@ -39,8 +39,11 @@ impl Display for Cat {
     }
 }
 #[derive(Debug)]
+pub struct Dog {}
+
+#[derive(Debug)]
 pub enum Pet {
-    Dog,
+    Dog(Dog),
     Cat(Cat),
 }
 
@@ -55,6 +58,19 @@ impl From<Pet> for Option<Cat> {
         match pet {
             Pet::Cat(cat) => Some(cat),
             _ => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CatCastError;
+impl TryFrom<Pet> for Cat {
+    type Error = CatCastError;
+
+    fn try_from(pet: Pet) -> Result<Self, CatCastError> {
+        match pet {
+            Pet::Cat(cat) => Ok(cat),
+            _ => Err(CatCastError),
         }
     }
 }
@@ -79,6 +95,7 @@ impl AddAssign<u32> for Cat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // use crate::Pet::Dog;
 
     #[test]
     fn test_cat_new() {
@@ -127,12 +144,39 @@ mod tests {
     }
 
     #[test]
+    fn test_try_cat_into_pet() {
+        let pet = Pet::Cat(Cat::new("Gav", 1));
+
+        let cat = Cat::try_from(pet);
+
+        if let Ok(cat) = cat {
+            assert_eq!(cat.name, "Gav");
+            assert_eq!(cat.age, 1);
+        } else {
+            panic!("Expected Pet::Cat, but got {cat:?}");
+        }
+    }
+
+    #[test]
     fn test_pet_into_cat() {
         let pet = Pet::Cat(Cat::new("Gav", 1));
         let cat: Option<Cat> = pet.into();
         if let Some(c) = cat {
             assert_eq!(c.name(), "Gav");
             assert_eq!(c.age, 1);
+        } else {
+            panic!("Expected Some(Cat), but got None");
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected Some(Cat), but got None")]
+    fn test_try_dog_into_cat() {
+        let dog = Dog {};
+        let pet = Pet::Dog(dog);
+        let cat: Option<Cat> = pet.into();
+        if cat.is_some() {
+            panic!("Unexpected cast to Cat");
         } else {
             panic!("Expected Some(Cat), but got None");
         }
