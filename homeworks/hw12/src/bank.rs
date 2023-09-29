@@ -137,7 +137,6 @@ impl Bank {
     pub fn deposit(&mut self, account: &str, amount: Money) -> Result<(), BankError> {
         if let Some(balance) = self.accounts.get_mut(account) {
             if amount <= Money::default() {
-                // Err("Amount must be positive")
                 Err(AmountNegativeError {
                     account: account.to_owned(),
                     amount,
@@ -186,7 +185,6 @@ impl Bank {
                 }
                 .into())
             } else if *balance < RefCell::from(amount) {
-                //  Err("Insufficient funds")
                 Err(InsufficientFundsError {
                     amount,
                     account: account.to_owned(),
