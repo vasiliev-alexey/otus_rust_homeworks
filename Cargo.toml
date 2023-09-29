@@ -8,8 +8,9 @@ members = [
     "homeworks/hw5",
     "homeworks/hw6",
     "homeworks/hw7",
-    "homeworks/hw9",
     "homeworks/hw8",
+    "homeworks/hw9",
+    "homeworks/hw10",
     "homeworks/hw12",
     "practice"
 ]
