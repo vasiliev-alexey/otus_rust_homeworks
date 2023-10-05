@@ -3,9 +3,10 @@ name: sanitizer for homework tasks 13 14 15
 on:
   push:
     branches:
-      - hw13
-      - hw14
-      - hw15
+      - hw*
+      - '!hw13'
+      - '!hw14'
+      - '!hw15'
 
 jobs:
 
