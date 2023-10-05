@@ -1,5 +1,5 @@
 [package]
-name = "hw12"
+name = "bank_engine"
 version.workspace = true
 authors.workspace = true
 description.workspace = true
@@ -17,3 +17,7 @@ keywords.workspace = true
 [dependencies]
 nanoid = "0.4.0"
 thiserror = "1.0.49"
+log = "^0.4.20"
+env_logger = "^0.10.0"
+test-env-helpers = "0.2.2"
+serde = { version = "1.0.188", features = ["derive"] }
