@@ -91,3 +91,6 @@ crashlytics-build.properties
 fabric.properties
 
 .idea/
+
+
+/homeworks/hw12/*

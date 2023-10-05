@@ -1,0 +1,92 @@
+name: sanitizer for homework tasks 13 14 15
+
+on:
+  push:
+    branches:
+      - hw13
+      - hw14
+      - hw15
+
+jobs:
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt
+
+      - name: Run fmt shared
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./homeworks/hw1[345]/shared/Cargo.toml
+
+      - name: Run fmt server
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./homeworks/hw1[345]/server/Cargo.toml
+
+      - name: Run fmt client
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./homeworks/hw1[345]/client/Cargo.toml
+
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+
+      - name: Run clippy shared
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path ./homeworks/hw1[345]/shared/Cargo.toml
+
+      - name: Run clippy server
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path ./homeworks/hw1[345]/server/Cargo.toml
+
+      - name: Run clippy client
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path ./homeworks/hw1[345]/client/Cargo.toml
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Run test server
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./homeworks/hw1[345]/server/Cargo.toml
+
+      - name: Run test client
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./homeworks/hw1[345]/client/Cargo.toml
