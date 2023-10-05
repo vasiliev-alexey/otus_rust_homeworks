@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - hw*
-      - ! hw13
-      - ! hw14
-      - ! hw15
+      - '!hw13'
+      - '!hw14'
+      - '!hw15'
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
