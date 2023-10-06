@@ -1,22 +1,45 @@
 use client::BankClient;
-use log::{debug, error, info};
+use log::{error, info};
 
 use shared::constants::{LOG_LEVEL, SERVER_PATH};
 
 fn main() {
+    // Initialize the logger based on the environment variable `LOG_LEVEL`.
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
+    // Connect to the bank server.
     let client = BankClient::connect(SERVER_PATH);
 
-    if client.is_err() {
-        error!("Failed to connect: {}", &client.err().unwrap());
+    // Check if there was an error connecting to the server.
+    if let Err(err) = &client {
+        error!("Failed to connect: {}", err);
         return;
     } else {
-        info!("Successfully connected");
+        info!("Successfully connected to the bank server");
     }
+
+    // Unwrap the client from the `Result`.
     let mut client = client.unwrap();
-    let _ = client.create_account("Alice");
-    let _ = client.create_account("Bob");
-    client.deposit("Alice", 100.0);
-    client.transfer("Alice", "Bob", 100.0);
+
+    // Create two accounts: "Alice" and "Bob".
+    if let Err(err) = client.create_account("Alice") {
+        error!("Failed to create account: {}", err);
+        return;
+    }
+    if let Err(err) = client.create_account("Bob") {
+        error!("Failed to create account: {}", err);
+        return;
+    }
+
+    // Deposit 100.0 into the account with the name "Alice".
+    if let Err(err) = client.deposit("Alice", 100.0) {
+        error!("Failed to deposit amount: {}", err);
+        return;
+    }
+
+    // Transfer 100.0 from "Alice" to "Bob".
+    if let Err(err) = client.transfer("Alice", "Bob", 100.0) {
+        error!("Failed to transfer amount: {}", err);
+        return;
+    }
 }
