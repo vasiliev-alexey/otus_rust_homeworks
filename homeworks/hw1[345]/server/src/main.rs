@@ -22,7 +22,7 @@ const BUFFER_SIZE: usize = 1024;
 /// the `handle_client` function.
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
-    let mut bank = Bank::new();
+    let mut bank: Bank = Bank::new();
     let listener = TcpListener::bind(SERVER_PATH).unwrap();
     info!(
         "Server listening on port {}",
@@ -54,7 +54,7 @@ fn main() {
 /// * `stream` - A `TcpStream` object representing the client connection.
 ///
 /// ```
-fn handle_client(bank: &mut Bank, mut stream: TcpStream) {
+fn handle_client(bank: &mut impl BankTrait, mut stream: TcpStream) {
     let mut data = [0; BUFFER_SIZE];
 
     debug!("handling client");
@@ -115,7 +115,7 @@ fn handle_client(bank: &mut Bank, mut stream: TcpStream) {
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `account` - The name of the account to be opened.
 
-fn open_account(bank: &mut Bank, stream: &mut TcpStream, account: &String) {
+fn open_account(bank: &mut impl BankTrait, stream: &mut TcpStream, account: &String) {
     info!("open account {}", account);
 
     let result = bank.create_account(account);
@@ -141,7 +141,11 @@ fn open_account(bank: &mut Bank, stream: &mut TcpStream, account: &String) {
 /// * `bank` - A mutable reference to the `Bank` object.
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `deposit_params` - The deposit parameters containing the account and amount to deposit.
-fn process_deposit(bank: &mut Bank, stream: &mut TcpStream, deposit_params: &DepositParams) {
+fn process_deposit(
+    bank: &mut impl BankTrait,
+    stream: &mut TcpStream,
+    deposit_params: &DepositParams,
+) {
     info!(
         "process deposit for account {}  and amount {}",
         deposit_params.account, deposit_params.account
@@ -175,7 +179,11 @@ fn process_deposit(bank: &mut Bank, stream: &mut TcpStream, deposit_params: &Dep
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `withdraw_params` - The withdrawal parameters containing the account and amount to withdraw.
 
-fn process_withdraw(bank: &mut Bank, stream: &mut TcpStream, withdraw_params: &WithdrawParams) {
+fn process_withdraw(
+    bank: &mut impl BankTrait,
+    stream: &mut TcpStream,
+    withdraw_params: &WithdrawParams,
+) {
     info!("process withdraw for account {}", withdraw_params.account);
     let withdraw_result = bank.withdraw(withdraw_params.account.as_str(), withdraw_params.amount);
     if let Err(msg) = withdraw_result {
@@ -201,7 +209,7 @@ fn process_withdraw(bank: &mut Bank, stream: &mut TcpStream, withdraw_params: &W
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `params` - The transfer parameters containing the sender account, receiver account, and amount to transfer.
 
-fn process_transfer(bank: &mut Bank, stream: &mut TcpStream, params: &TransferParams) {
+fn process_transfer(bank: &mut impl BankTrait, stream: &mut TcpStream, params: &TransferParams) {
     info!(
         "process transfer from account {} to account {} and amount {}",
         params.sender_account, params.receiver_account, params.amount
@@ -234,7 +242,7 @@ fn process_transfer(bank: &mut Bank, stream: &mut TcpStream, params: &TransferPa
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `get_balance_params` - The parameters for the get balance request containing the account to get the balance for.
 fn process_get_balance(
-    bank: &mut Bank,
+    bank: &mut impl BankTrait,
     stream: &mut TcpStream,
     get_balance_params: &GetBalanceAccountRequestParams,
 ) {
@@ -268,7 +276,7 @@ fn process_get_balance(
 /// ()
 ///```
 
-fn process_get_history(bank: &mut Bank, stream: &mut TcpStream) {
+fn process_get_history(bank: &mut impl BankTrait, stream: &mut TcpStream) {
     info!("process history for hw1[345]",);
     let hist_result = bank.get_history();
 
@@ -294,7 +302,11 @@ fn process_get_history(bank: &mut Bank, stream: &mut TcpStream) {
 /// * `stream` - A mutable reference to the `TcpStream` object for communication.
 /// * `account` - The name of the account to get the transaction history for.
 
-fn process_get_history_for_account(bank: &mut Bank, stream: &mut TcpStream, account: &String) {
+fn process_get_history_for_account(
+    bank: &mut impl BankTrait,
+    stream: &mut TcpStream,
+    account: &String,
+) {
     info!("process history for account {account}");
     let hist_result = bank.get_account_history(account);
 
