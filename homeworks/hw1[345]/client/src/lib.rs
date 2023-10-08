@@ -1,10 +1,11 @@
 use crate::ResponseError::Io;
 use log::{debug, error};
-use shared::errors::{ConnectError, ConnectResult, ReceiverError, SendError};
-use shared::{
-    DepositParams, GetBalanceAccountRequestParams, OpenAccountRequestParams, Operation, Request,
+use shared::errors::{ConnectError, ConnectResult};
+use shared::models::{
+    DepositParams, GetBalanceAccountRequestParams, OpenAccountRequestParams, Request,
     RequestPayload, Response, ResponsePayload, TransferParams, WithdrawParams,
 };
+use shared::Operation;
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::io::{Read, Write};
@@ -395,20 +396,20 @@ impl BankClient {
     }
 }
 
-pub type RequestResult = Result<String, RequestError>;
+//pub type RequestResult = Result<String, RequestError>;
 pub type ResponseResult<T> = Result<T, ResponseError>;
 
 /// Error for request sending. It consists from two steps: sending and receiving data.
 ///
 /// `SendError` caused by send data error.
 /// `ReceiverError` caused by receive data error.
-#[derive(Debug, Error)]
-pub enum RequestError {
-    #[error(transparent)]
-    Send(#[from] SendError),
-    #[error(transparent)]
-    Receive(#[from] ReceiverError),
-}
+// #[derive(Debug, Error)]
+// pub enum RequestError {
+//     #[error(transparent)]
+//     Send(#[from] SendError),
+//     #[error(transparent)]
+//     Receive(#[from] ReceiverError),
+// }
 /// Represents an error that can occur when handling API responses.
 #[derive(Debug, Error)]
 pub enum ResponseError {

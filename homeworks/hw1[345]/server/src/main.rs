@@ -5,15 +5,14 @@ use std::str::from_utf8;
 use log::{debug, error, info};
 
 use bank_engine::bank::{Bank, BankTrait};
-use shared::constants::SERVER_PATH;
-use shared::ResponsePayload::{Error, History};
-use shared::{
+use shared::constants::{BUFFER_SIZE, SERVER_PATH};
+use shared::models::ResponsePayload::TransferSuccess;
+use shared::models::ResponsePayload::{Error, History};
+use shared::models::{
     DepositParams, GetBalanceAccountRequestParams, Request, RequestPayload, Response,
     ResponsePayload, TransferParams, WithdrawParams,
 };
-use ResponsePayload::TransferSuccess;
-
-const BUFFER_SIZE: usize = 1024;
+use RequestPayload::*;
 
 /// The main function of the program.
 ///
@@ -40,7 +39,6 @@ fn main() {
             }
         }
     }
-    drop(listener);
 }
 
 /// Handles a client connection.
@@ -73,21 +71,17 @@ fn handle_client(bank: &mut impl BankTrait, mut stream: TcpStream) {
                 let req =
                     serde_json::from_str::<Request>(from_utf8(&data[0..size]).unwrap()).unwrap();
                 match &req.payload {
-                    RequestPayload::OpenAccount(data) => {
-                        open_account(bank, &mut stream, &data.account)
-                    }
-                    RequestPayload::Deposit(params) => process_deposit(bank, &mut stream, params),
-                    RequestPayload::Withdraw(data) => process_withdraw(bank, &mut stream, data),
-                    RequestPayload::Transfer(params) => process_transfer(bank, &mut stream, params),
-                    RequestPayload::Ping => process_ping(&mut stream),
-                    RequestPayload::GetBalance(params) => {
-                        process_get_balance(bank, &mut stream, params)
-                    }
-                    RequestPayload::GetHistoryForAccount(account) => {
+                    OpenAccount(data) => open_account(bank, &mut stream, &data.account),
+                    Deposit(params) => process_deposit(bank, &mut stream, params),
+                    Withdraw(data) => process_withdraw(bank, &mut stream, data),
+                    Transfer(params) => process_transfer(bank, &mut stream, params),
+                    Ping => process_ping(&mut stream),
+                    GetBalance(params) => process_get_balance(bank, &mut stream, params),
+                    GetHistoryForAccount(account) => {
                         process_get_history_for_account(bank, &mut stream, account)
                     }
-                    RequestPayload::GetHistory() => process_get_history(bank, &mut stream),
-                    RequestPayload::CloseConnection => {
+                    GetHistory() => process_get_history(bank, &mut stream),
+                    CloseConnection => {
                         info!("Closing connection with {}", stream.peer_addr().unwrap());
                         stream.shutdown(Shutdown::Both).unwrap();
                         break;

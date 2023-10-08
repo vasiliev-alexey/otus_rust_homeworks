@@ -14,23 +14,3 @@ pub enum ConnectError {
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
 }
-
-/// Represents an error that occurs while sending data.
-#[derive(Debug, Error)]
-pub enum SendError {
-    /// An IO error with the specified underlying error.
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
-}
-
-/// Represents an error that occurs while receiving data. It includes IO and encoding errors.
-#[derive(Debug, Error)]
-pub enum ReceiverError {
-    /// An IO error with the specified underlying error.
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
-
-    /// A bad encoding error.
-    #[error("bad encoding")]
-    BadEncoding,
-}
