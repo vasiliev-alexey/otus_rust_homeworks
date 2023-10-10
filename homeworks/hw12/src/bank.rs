@@ -4,20 +4,24 @@ use log::{debug, error, info};
 /// The `Bank` struct represents a bank and provides methods for managing accounts
 /// and performing various banking operations such as deposits, withdrawals, and transfers.
 ///
-use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
+use std::{thread, time};
 use thiserror::Error;
+use ulid::Ulid;
 
 type Money = f64;
 
 const MONEY_ZERO: Money = 0.0;
 
+type TransactionId = String;
+
 #[derive(Default)]
 pub struct Bank {
     accounts: HashMap<String, RefCell<Money>>,
-    history: VecDeque<Operation>,
+    accounts_history: HashMap<String, Vec<String>>,
+    history: BTreeMap<TransactionId, Operation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -86,15 +90,43 @@ pub enum BankError {
 }
 
 fn get_next_id() -> String {
-    nanoid!(10)
+    // ver speed CPU
+    thread::sleep(time::Duration::from_millis(1));
+    Ulid::new().to_string()
 }
 
 impl Bank {
     pub fn new() -> Self {
         Bank {
             accounts: HashMap::new(),
-            history: VecDeque::new(),
+            history: BTreeMap::new(),
+            accounts_history: HashMap::new(),
         }
+    }
+
+    fn push_transaction(&mut self, operation: Operation) {
+        let account = operation.source_account.clone();
+        if self.accounts_history.contains_key(account.as_str()) {
+            self.accounts_history
+                .get_mut(account.as_str())
+                .unwrap()
+                .push(operation.id.clone());
+        } else {
+            self.accounts_history
+                .insert(account, vec![operation.id.clone()]);
+        }
+
+        if operation.operation_type == OperationType::Transfer {
+            let target_account = operation.target_account.as_ref().unwrap().clone();
+            if self.accounts_history.contains_key(target_account.as_str()) {
+                self.accounts_history
+                    .get_mut(target_account.as_str())
+                    .unwrap()
+                    .push(operation.id.clone());
+            }
+        };
+
+        self.history.insert(operation.id.clone(), operation);
     }
 }
 
@@ -108,10 +140,12 @@ impl BankTrait for Bank {
     /// # Errors
     /// AccountDuplicationError
     ///
+    /// Result
+    /// TransactionId for the new account
     /// Returns an error if an account with the same name already exists in the bank.
     ///
     /// ```
-    fn create_account(&mut self, account: &str) -> Result<(), BankError> {
+    fn create_account(&mut self, account: &str) -> Result<TransactionId, BankError> {
         if self.accounts.contains_key(account) {
             error!("Account already exists");
             Err(AccountDuplicationError {
@@ -119,18 +153,21 @@ impl BankTrait for Bank {
             }
             .into())
         } else {
+            let netxt_id = get_next_id();
             self.accounts
                 .insert(account.to_owned(), RefCell::from(MONEY_ZERO));
             let operation = Operation {
-                id: get_next_id(),
+                id: netxt_id.to_owned(),
                 source_account: account.to_owned(),
                 target_account: None,
                 amount: MONEY_ZERO,
                 operation_type: OperationType::CreateAccount,
             };
-            self.history.push_back(operation);
+
+            //self.history.push_back(operation);
+            self.push_transaction(operation);
             info!("Created account {}", &account);
-            Ok(())
+            Ok(netxt_id.clone().to_owned())
         }
     }
     /// Deposits the specified amount into the account.
@@ -138,12 +175,16 @@ impl BankTrait for Bank {
     /// # Arguments
     ///
     /// * `amount` - The amount to deposit into the account.
+    /// * `account` - The account to deposit into.
+    ///
+    /// Result
+    /// `TransactionId` for operation
     /// # Errors
     /// AmountNegativeError
     /// AccountNotFoundError
     ///
     /// ```
-    fn deposit(&mut self, account: &str, amount: Money) -> Result<(), BankError> {
+    fn deposit(&mut self, account: &str, amount: Money) -> Result<TransactionId, BankError> {
         if let Some(balance) = self.accounts.get_mut(account) {
             if amount <= Money::default() {
                 error!("Amount must be positive");
@@ -154,16 +195,18 @@ impl BankTrait for Bank {
                 .into())
             } else {
                 *balance.get_mut() += amount;
+                let transaction_id = get_next_id();
                 let operation = Operation {
-                    id: get_next_id(),
+                    id: transaction_id.to_owned(),
                     source_account: account.to_owned(),
                     target_account: None,
                     amount,
                     operation_type: OperationType::Deposit,
                 };
-                self.history.push_back(operation);
+                // self.history.push_back(operation);
+                self.push_transaction(operation);
                 info!("Deposited into account {}", &account);
-                Ok(())
+                Ok(transaction_id.to_owned())
             }
         } else {
             error!("Account does not exist");
@@ -178,6 +221,7 @@ impl BankTrait for Bank {
     /// # Arguments
     ///
     /// * `amount` - The amount to withdraw from the account.
+    /// * `account` - The account to withdraw from.
     ///
     /// # Errors
     /// AmountNegativeError
@@ -188,7 +232,8 @@ impl BankTrait for Bank {
     ///
     /// ```
 
-    fn withdraw(&mut self, account: &str, amount: Money) -> Result<(), BankError> {
+    fn withdraw(&mut self, account: &str, amount: Money) -> Result<TransactionId, BankError> {
+        let transaction_id = get_next_id();
         if let Some(balance) = self.accounts.get_mut(account) {
             if amount <= Money::default() {
                 error!("Amount must be positive: amount {amount}");
@@ -212,16 +257,29 @@ impl BankTrait for Bank {
                 let mut balance = balance.borrow_mut();
                 debug!("Balance before: {balance:?}");
                 *balance -= amount;
+
                 let operation = Operation {
-                    id: get_next_id(),
+                    id: transaction_id.to_owned(),
                     source_account: account.to_owned(),
                     target_account: None,
                     amount,
                     operation_type: OperationType::Withdraw,
                 };
-                self.history.push_back(operation);
+                // self.history.push_back(operation);
+
+                if self.accounts_history.contains_key(account) {
+                    self.accounts_history
+                        .get_mut(account)
+                        .unwrap()
+                        .push(operation.id.clone());
+                } else {
+                    self.accounts_history
+                        .insert(account.to_owned(), vec![operation.id.clone()]);
+                }
+                self.history.insert(operation.id.clone(), operation);
+
                 info!("Withdrawn from account {} amount {}", &account, amount);
-                Ok(())
+                Ok(transaction_id.to_owned())
             }
         } else {
             error!("Account does not exist");
@@ -254,7 +312,7 @@ impl BankTrait for Bank {
         sender_account: &str,
         receiver_account: &str,
         amount: Money,
-    ) -> Result<(), BankError> {
+    ) -> Result<TransactionId, BankError> {
         debug!(
             "transfer {} from {} to {}",
             amount, sender_account, receiver_account
@@ -291,20 +349,20 @@ impl BankTrait for Bank {
                 } else {
                     *sender_balance.borrow_mut() -= amount;
                     *receiver_balance.borrow_mut() += amount;
+                    let transaction_id = get_next_id();
                     let operation = Operation {
-                        id: get_next_id(),
+                        id: transaction_id.to_owned(),
                         source_account: sender_account.to_owned(),
                         amount,
                         target_account: Some(receiver_account.to_owned()),
                         operation_type: OperationType::Transfer,
                     };
-
-                    self.history.push_back(operation);
+                    self.push_transaction(operation);
                     info!(
-                        "Transferred {} from {} to {}",
-                        amount, sender_account, receiver_account
+                        "Transaction id: {} Transferred {} from {} to {}",
+                        transaction_id, amount, sender_account, receiver_account
                     );
-                    Ok(())
+                    Ok(transaction_id.to_owned())
                 }
             } else {
                 Err(AccountNotFoundError {
@@ -359,7 +417,8 @@ impl BankTrait for Bank {
     /// Returns an error if the specified account does not exist.
     /// ```
     fn get_history(&self) -> Result<Vec<Operation>, BankError> {
-        Ok(self.history.iter().cloned().collect())
+        // Ok(self.history.iter().cloned().collect())
+        Ok(self.history.values().cloned().collect())
     }
     /// Returns the transaction history of the specified account.
     ///
@@ -376,14 +435,18 @@ impl BankTrait for Bank {
     /// ```
 
     fn get_account_history(&self, account: &str) -> Result<Vec<Operation>, BankError> {
-        Ok(self
-            .history
+        let transaction_history = self.accounts_history.get(account);
+        if transaction_history.is_none() {
+            return Err(AccountNotFoundError {
+                account: account.to_owned(),
+            }
+            .into());
+        };
+        let transaction_history = transaction_history.unwrap();
+        Ok(transaction_history
             .iter()
+            .map(|t| self.history.get(t).unwrap())
             .cloned()
-            .filter(|operation| {
-                operation.source_account == account
-                    || operation.target_account == Some(account.to_string())
-            })
             .collect())
     }
     /// Replays the transaction history stored in a source_bank for the new Bank instance.
@@ -422,7 +485,7 @@ impl BankTrait for Bank {
                             operation.amount,
                         )
                         .unwrap(),
-                }
+                };
             }
         }
         target_bank
@@ -442,34 +505,41 @@ pub trait BankTrait {
     /// Returns an error if an account with the same name already exists in the bank.
     ///
     /// ```
-    fn create_account(&mut self, account: &str) -> Result<(), BankError>;
+    fn create_account(&mut self, account: &str) -> Result<TransactionId, BankError>;
     /// Deposits the specified amount into the account.
     ///
     /// # Arguments
     ///
+    /// * `account` - The account to deposit into.
     /// * `amount` - The amount to deposit into the account.
+    ///
+    /// #Returns
+    ///  TransactionId for the new account
+    ///  BankError if the account does not exist or the amount is negative
     /// # Errors
     /// AmountNegativeError
     /// AccountNotFoundError
     ///
     /// ```
-    fn deposit(&mut self, account: &str, amount: Money) -> Result<(), BankError>;
+    fn deposit(&mut self, account: &str, amount: Money) -> Result<TransactionId, BankError>;
     /// Withdraws the specified amount from the account.
     ///
     /// # Arguments
     ///
+    /// * `account` - The account to withdraw from.
     /// * `amount` - The amount to withdraw from the account.
     ///
+    /// # Returns
+    /// TransactionId for processing the transaction
+    /// BankError if the account does not exist or the amount is negative or insufficient funds
     /// # Errors
     /// AmountNegativeError
     /// AccountNotFoundError
     /// InsufficientFundsError
     ///
-    /// Returns an error if the account balance is insufficient to cover the withdrawal amount.
-    ///
     /// ```
 
-    fn withdraw(&mut self, account: &str, amount: Money) -> Result<(), BankError>;
+    fn withdraw(&mut self, account: &str, amount: Money) -> Result<TransactionId, BankError>;
     /// Transfers the specified amount from one account to another.
     ///
     /// # Arguments
@@ -493,7 +563,7 @@ pub trait BankTrait {
         sender_account: &str,
         receiver_account: &str,
         amount: Money,
-    ) -> Result<(), BankError>;
+    ) -> Result<TransactionId, BankError>;
     /// Returns the current balance of the account.
     /// # Arguments
     ///
@@ -564,7 +634,9 @@ mod tests {
     #[test]
     fn test_create_account() {
         let mut bank = Bank::new();
-        assert!(bank.create_account("Alice").is_ok());
+        let account_creation_result = bank.create_account("Alice");
+        assert!(account_creation_result.is_ok());
+        assert!(!account_creation_result.unwrap().is_empty());
         assert!(bank.create_account("Bob").is_ok());
         let duplicate_account = bank.create_account("Alice");
         assert!(duplicate_account.is_err());
@@ -580,7 +652,10 @@ mod tests {
     fn test_deposit() {
         let mut bank = Bank::new();
         bank.create_account("Alice").unwrap();
-        assert!(bank.deposit("Alice", 100.0).is_ok());
+        let transaction_result = bank.deposit("Alice", 100.0);
+
+        assert!(transaction_result.is_ok());
+        assert!(!transaction_result.unwrap().is_empty());
         assert_eq!(bank.get_balance("Alice").unwrap(), 100.0);
         let res = bank.deposit("Alice", -50.0);
         assert!(res.is_err());
@@ -599,8 +674,10 @@ mod tests {
         let mut bank = Bank::new();
         bank.create_account("Alice").unwrap();
         bank.deposit("Alice", 100.0).unwrap();
+        let transaction_result = bank.withdraw("Alice", 50.0);
+        assert!(transaction_result.is_ok());
+        assert!(!transaction_result.unwrap().is_empty());
 
-        assert!(bank.withdraw("Alice", 50.0).is_ok());
         assert_eq!(bank.get_balance("Alice").unwrap(), 50.0);
         let res = bank.withdraw("Alice", -30.0);
         assert!(res.is_err());
@@ -631,8 +708,9 @@ mod tests {
         bank.create_account("Alice").unwrap();
         bank.create_account("Bob").unwrap();
         bank.deposit("Alice", 100.0).unwrap();
-
-        assert!(bank.transfer("Alice", "Bob", 50.0).is_ok());
+        let transaction_result = bank.transfer("Alice", "Bob", 50.0);
+        assert!(transaction_result.is_ok());
+        assert!(!transaction_result.unwrap().is_empty());
         assert_eq!(bank.get_balance("Alice").unwrap(), 50.0);
         assert_eq!(bank.get_balance("Bob").unwrap(), 50.0);
 
@@ -718,6 +796,8 @@ mod tests {
         assert!(history.is_ok());
         let history = history.unwrap();
         assert_eq!(history.len(), 4);
+
+        println!("history: {:?}", history);
         assert_eq!(history[0].operation_type, OperationType::CreateAccount);
         assert_eq!(history[1].operation_type, OperationType::CreateAccount);
         assert_eq!(history[2].operation_type, OperationType::Deposit);
