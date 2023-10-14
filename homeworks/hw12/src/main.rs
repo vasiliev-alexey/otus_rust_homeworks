@@ -1,40 +1,37 @@
-use bank_engine::bank::{Bank, BankTrait};
+use bank_engine::bank::{Bank, BankError, BankTrait};
 
-fn main() {
+fn main() -> Result<(), BankError> {
+    // Instantiate the bank
     let mut bank = Bank::new();
 
-    bank.create_account("Alice").unwrap();
-    bank.create_account("Bob").unwrap();
+    // Example of creating an account
+    bank.create_account("Alice")?;
+    bank.create_account("Bob")?;
 
-    bank.deposit("Alice", 100.0).unwrap();
-    bank.withdraw("Alice", 50.0).unwrap();
+    //Example of deposit
+    bank.deposit("Alice", 100.0)?;
 
-    bank.transfer("Alice", "Bob", 25.0).unwrap();
+    //Example of withdraw
+    bank.withdraw("Alice", 50.0)?;
 
-    println!("Alice balance: {}", bank.get_balance("Alice").unwrap());
-    println!("Bob balance: {}", bank.get_balance("Bob").unwrap());
+    //Example of transfer
+    bank.transfer("Alice", "Bob", 25.0)?;
 
-    let history = bank.get_history();
+    //Example of balance
+    println!("Alice balance: {}", bank.get_balance("Alice")?);
+    println!("Bob balance: {}", bank.get_balance("Bob")?);
 
-    if history.is_err() {
-        println!("History: {:?}", history.err().unwrap());
-        return;
-    }
-    let history = history.unwrap();
-
+    //Example of history
+    let history = bank.get_history()?;
     for operation in history {
         println!("{:?}", operation);
     }
 
-    let alice_history = bank.get_account_history("Alice");
-
-    if alice_history.is_err() {
-        println!("Alice history: {:?}", alice_history.err().unwrap());
-        return;
-    }
-    let alice_history = alice_history.unwrap();
-
+    //Example of account history
+    let alice_history = bank.get_account_history("Alice")?;
     for operation in alice_history {
         println!("{:?}", operation);
     }
+
+    Ok(())
 }
