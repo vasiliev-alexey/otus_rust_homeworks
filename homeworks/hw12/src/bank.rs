@@ -8,7 +8,6 @@ use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
-use std::slice::Iter;
 use thiserror::Error;
 
 type Money = f64;
@@ -56,17 +55,9 @@ pub struct AccountNotFoundError {
 }
 
 #[macro_export]
-macro_rules! account_not_found_error {
-    ($account: expr) => {{
-        error!("Account {} does not exist", $account);
-        Err(AccountNotFoundError { account: $account }.into())
-    }};
-}
-
-#[macro_export]
 macro_rules! check_account_exists {
     ($self: expr , $account: expr) => {{
-        if !$self.accounts.contains_key($account.as_str()) {
+        if !$self.accounts.contains_key(&$account) {
             error!("Account {} does not exist", $account);
             return Err(AccountNotFoundError { account: $account }.into());
         }
@@ -108,6 +99,13 @@ pub enum BankError {
     SomeAccountTransfer(#[from] SomeAccountTransferError),
 }
 
+impl BankError {
+    pub fn account_not_found(account: String) -> Self {
+        error!("Account {} does not exist", account);
+        AccountNotFoundError { account }.into()
+    }
+}
+
 impl Bank {
     pub fn new() -> Self {
         Self::default()
@@ -121,16 +119,13 @@ impl Bank {
     }
 
     fn push_transaction(&mut self, operation: Operation) -> Result<(), BankError> {
-        if !self
-            .accounts
-            .contains_key(operation.source_account.as_str())
-        {
-            return account_not_found_error!(operation.source_account);
+        if !self.accounts.contains_key(&operation.source_account) {
+            return Err(BankError::account_not_found(operation.source_account));
         }
-
+        // check target account exists when transferring
         if let OperationType::Transfer { ref target_account } = operation.operation_type {
             if !self.accounts.contains_key(target_account) {
-                return account_not_found_error!(operation.source_account);
+                return Err(BankError::account_not_found(target_account.to_string()));
             }
         }
 
@@ -141,13 +136,11 @@ impl Bank {
             .push(operation.id.clone());
 
         if let OperationType::Transfer { ref target_account } = operation.operation_type {
-            let target_account = target_account.clone(); //operation.target_account.as_ref().unwrap().clone();
-            if self.accounts_history.contains_key(target_account.as_str()) {
-                self.accounts_history
-                    .get_mut(target_account.as_str())
-                    .unwrap()
-                    .push(operation.id.clone());
-            }
+            let target_account = target_account.clone();
+            self.accounts_history
+                .get_mut(&target_account)
+                .unwrap()
+                .push(operation.id.clone());
         }
         self.history.insert(operation.id.clone(), operation);
         Ok(())
@@ -231,7 +224,7 @@ impl BankTrait for Bank {
                 Ok(transaction_id.to_owned())
             }
         } else {
-            account_not_found_error!(account.to_string())
+            Err(BankError::account_not_found(account.to_string()))
         }
     }
 
@@ -252,6 +245,7 @@ impl BankTrait for Bank {
     /// ```
     fn withdraw(&mut self, account: &str, amount: Money) -> Result<TransactionId, BankError> {
         check_account_exists!(self, account.to_string());
+
         let transaction_id = self.get_next_id();
         let operation = Operation {
             id: transaction_id.to_owned(),
@@ -285,7 +279,7 @@ impl BankTrait for Bank {
                 *balance -= amount;
             }
         } else {
-            return account_not_found_error!(account.to_string());
+            return Err(BankError::account_not_found(account.to_string()));
         }
         info!("Withdrawn from account {} amount {}", &account, amount);
         self.push_transaction(operation)?;
@@ -372,10 +366,10 @@ impl BankTrait for Bank {
                     Ok(transaction_id.to_owned())
                 }
             } else {
-                account_not_found_error!(receiver_account.to_string())
+                Err(BankError::account_not_found(receiver_account.to_string()))
             }
         } else {
-            account_not_found_error!(sender_account.to_string())
+            Err(BankError::account_not_found(sender_account.to_string()))
         }
     }
 
@@ -452,28 +446,22 @@ impl BankTrait for Bank {
     /// or if there was an error while replaying the transaction history.
     ///
     /// ```
-    fn replay_history(operations_log: Iter<&Operation>) -> Bank {
+    fn replay_history<'a>(operations_log: impl Iterator<Item = &'a Operation>) -> Bank {
         let mut target_bank = Bank::new();
 
-        // let history_result = source_bank.get_history();
-        //  if let Ok(history) = history_result {
         for operation in operations_log {
             match &operation.operation_type {
                 OperationType::CreateAccount => target_bank
-                    .create_account(operation.source_account.as_str())
+                    .create_account(&operation.source_account)
                     .unwrap(),
                 OperationType::Deposit => target_bank
-                    .deposit(operation.source_account.as_str(), operation.amount)
+                    .deposit(&operation.source_account, operation.amount)
                     .unwrap(),
                 OperationType::Withdraw => target_bank
-                    .withdraw(operation.source_account.as_str(), operation.amount)
+                    .withdraw(&operation.source_account, operation.amount)
                     .unwrap(),
                 OperationType::Transfer { target_account } => target_bank
-                    .transfer(
-                        operation.source_account.as_str(),
-                        target_account,
-                        operation.amount,
-                    )
+                    .transfer(&operation.source_account, target_account, operation.amount)
                     .unwrap(),
             };
             //}
@@ -492,8 +480,8 @@ impl BankTrait for Bank {
     /// Returns an `Option<&Operation>` representing the operation with the given ID if it exists in the history,
     /// or `None` if no operation with the given ID is found.
     ///
-    fn get_operation_by_id(&self, id: &TransactionId) -> Result<Option<&Operation>> {
-        Ok(self.history.get(id))
+    fn get_operation_by_id(&self, id: &TransactionId) -> Option<&Operation> {
+        self.history.get(id)
     }
 }
 
@@ -628,7 +616,7 @@ pub trait BankTrait {
     /// or if there was an error while replaying the transaction history.
     ///
     /// ```
-    fn replay_history(operations_log: Iter<&Operation>) -> Bank;
+    fn replay_history<'a>(operations_log: impl Iterator<Item = &'a Operation>) -> Bank;
 
     // Retrieves an operation from the history by its ID.
     ///
@@ -641,7 +629,7 @@ pub trait BankTrait {
     /// Returns an `Option<&Operation>` representing the operation with the given ID if it exists in the history,
     /// or `None` if no operation with the given ID is found.
     ///
-    fn get_operation_by_id(&self, id: &TransactionId) -> Result<Option<&Operation>>;
+    fn get_operation_by_id(&self, id: &TransactionId) -> Option<&Operation>;
 }
 
 #[test_env_helpers::before_all]
@@ -826,6 +814,22 @@ mod tests {
     }
 
     #[test]
+    fn test_transfer_without_target() {
+        let mut bank = bank_with_accounts!("Alice");
+
+        bank.deposit("Alice", 100.0).unwrap();
+        let transaction_result = bank.transfer("Alice", "Bob", 50.0);
+        assert!(transaction_result.is_err());
+        assert_eq!(
+            transaction_result.err().unwrap(),
+            AccountNotFoundError {
+                account: "Bob".to_string()
+            }
+            .into()
+        )
+    }
+
+    #[test]
     fn test_get_balance() {
         let mut bank = bank_with_accounts!("Alice");
         bank.deposit("Alice", 100.0).unwrap();
@@ -920,7 +924,7 @@ mod tests {
         let mut source_bank = bank_with_accounts!("Alice", "Bob");
         source_bank.deposit("Alice", 100.0).unwrap();
         source_bank.transfer("Alice", "Bob", 50.0).unwrap();
-        let target_bank = Bank::replay_history(source_bank.get_history().unwrap().iter());
+        let target_bank = Bank::replay_history(source_bank.get_history().unwrap().into_iter());
         assert_eq!(target_bank.get_balance("Alice").unwrap(), 50.0);
         assert_eq!(target_bank.get_balance("Bob").unwrap(), 50.0);
         // Checking Alice's history
@@ -963,26 +967,25 @@ mod tests {
         let oper_2 = bank.transfer("Alice", "Bob", 50.0).unwrap();
 
         let res = bank.get_operation_by_id(&oper_1);
-        if let Err(err) = res {
-            panic!("Unexpected error: {:?}", err);
+        if None == res {
+            panic!("Unexpected error: result");
         }
         let res = res.unwrap();
         match res {
-            Some(oper) => {
+            oper => {
                 assert_eq!(oper.operation_type, OperationType::Deposit);
                 assert_eq!(oper.source_account, "Alice");
                 assert_eq!(oper.amount, 100.0);
             }
-            None => panic!("Unexpected logic"),
         }
 
         let res = bank.get_operation_by_id(&oper_2);
-        if let Err(err) = res {
-            panic!("Unexpected error: {:?}", err);
+        if None == res {
+            panic!("Unexpected  result");
         }
         let res = res.unwrap();
         match res {
-            Some(oper) => {
+            oper => {
                 assert_eq!(
                     oper.operation_type,
                     OperationType::Transfer {
@@ -992,8 +995,6 @@ mod tests {
                 assert_eq!(oper.source_account, "Alice");
                 assert_eq!(oper.amount, 50.0);
             }
-
-            None => panic!("Unexpected logic"),
         }
     }
 }
