@@ -1,50 +1,31 @@
-use std::cell::RefCell;
 use std::fmt::Display;
-use std::rc::Rc;
 
 struct Node<T> {
     value: T,
-    next: Option<Rc<RefCell<Node<T>>>>,
-}
-
-impl<T> Node<T> {
-    fn new(value: T) -> Self {
-        Node { value, next: None }
-    }
+    next: Option<Box<Node<T>>>,
 }
 
 pub struct LinkedList<T> {
-    head: Option<Rc<RefCell<Node<T>>>>,
+    head: Option<Box<Node<T>>>,
     size: usize,
 }
 
 impl<T: Display> Display for LinkedList<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        //     fn to_string(&self) -> String {
         let mut res = ": ".to_string();
 
-        let mut current = self.head.clone();
+        let mut current = self.head.as_ref();
         for ind in 0..=(self.size) {
             if let Some(node) = current {
                 if ind == 0 {
-                    res.push_str(node.borrow().value.to_string().as_str());
+                    res.push_str(&node.value.to_string());
                 }
-
                 if ind != self.size - 1 {
                     res.push_str(" => ");
                 }
-
-                current = node.borrow().next.clone();
+                current = node.next.as_ref();
                 if current.is_some() {
-                    res.push_str(
-                        current
-                            .as_ref()
-                            .unwrap()
-                            .borrow()
-                            .value
-                            .to_string()
-                            .as_str(),
-                    );
+                    res.push_str(&current.as_ref().unwrap().value.to_string());
                 }
             } else {
                 break;
@@ -67,31 +48,33 @@ impl<T> LinkedList<T> {
             size: 0,
         }
     }
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
 
     pub fn iter(&self) -> ListIterator<T> {
         ListIterator {
-            current: self.head.clone(),
+            current: self.head.as_deref(),
         }
     }
 
     pub fn push_back(&mut self, value: T) {
-        let new_node = Rc::new(RefCell::new(Node::new(value)));
+        let new_node = Box::new(Node { value, next: None });
 
-        if let Some(ref _head) = self.head {
-            let mut current = Some(_head.clone());
-            for _ in 0..(self.size) {
-                if let Some(node) = current.clone() {
-                    if node.borrow().next.is_some() {
-                        current = node.borrow().next.clone();
-                    }
-                }
+        let mut last = self.head.as_mut();
+        for _ in 0..(self.size) {
+            if last.is_none() || last.as_ref().unwrap().next.is_none() {
+                break;
             }
+            last = last.unwrap().next.as_mut();
+        }
 
-            if let Some(ref mut node) = current {
-                let next = node.borrow_mut().next.take();
-                new_node.borrow_mut().next = next;
-                node.borrow_mut().next = Some(new_node);
-            }
+        if let Some(last) = last {
+            last.next = Some(new_node);
         } else {
             self.head = Some(new_node);
         }
@@ -99,8 +82,10 @@ impl<T> LinkedList<T> {
     }
 
     pub fn push_front(&mut self, value: T) {
-        let new_node = Rc::new(RefCell::new(Node::new(value)));
-        new_node.borrow_mut().next = self.head.take();
+        let new_node = Box::new(Node {
+            value,
+            next: self.head.take(),
+        });
         self.head = Some(new_node);
         self.size += 1;
     }
@@ -108,25 +93,24 @@ impl<T> LinkedList<T> {
     pub fn insert_after(&mut self, index: usize, value: T) {
         if index == 0 {
             self.push_front(value);
-            self.size += 1;
             return;
         }
 
-        let new_node = Rc::new(RefCell::new(Node::new(value)));
-
-        let mut current = self.head.clone();
-        for _ in 0..=(index - 1) {
+        let mut current = self.head.as_deref_mut();
+        for _ in 0..index {
             if let Some(node) = current {
-                current = node.borrow().next.clone();
+                current = node.next.as_deref_mut();
             } else {
                 return;
             }
         }
 
-        if let Some(ref mut node) = current {
-            let next = node.borrow_mut().next.take();
-            new_node.borrow_mut().next = next;
-            node.borrow_mut().next = Some(new_node);
+        if let Some(node) = current {
+            let new_node = Box::new(Node {
+                value,
+                next: node.next.take(),
+            });
+            node.next = Some(new_node);
         }
         self.size += 1;
     }
@@ -136,64 +120,53 @@ impl<T> LinkedList<T> {
             return None;
         }
 
-        let mut current = self.head.clone();
-        for _ in 0..(index - 1) {
-            if let Some(node) = current {
-                current = node.borrow().next.clone();
-            } else {
-                break;
+        let mut current = self.head.as_deref_mut();
+        let mut count = 1;
+
+        while let Some(node) = current {
+            if count == index {
+                let next = node.next.take();
+                let list = LinkedList {
+                    head: next,
+                    size: self.size - index,
+                };
+                self.size = index;
+                return Some(list);
             }
+
+            current = node.next.as_deref_mut();
+            count += 1;
         }
 
-        if let Some(ref node) = current {
-            let next = node.borrow_mut().next.take();
-
-            let new_size = self.size - index;
-            self.size = index;
-
-            Some(LinkedList {
-                head: next,
-                size: new_size,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.size
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.size == 0
+        None
     }
 
     pub fn change_value_by_index(&mut self, index: usize, value: T) {
-        let mut current = self.head.clone();
+        let mut current = self.head.as_deref_mut();
         for _ in 0..=(index - 1) {
-            if let Some(node) = current.clone() {
-                current = node.borrow().next.clone();
+            if let Some(node) = current {
+                current = node.next.as_deref_mut();
             } else {
                 return;
             }
         }
         if let Some(ref mut node) = current {
-            node.borrow_mut().value = value;
+            node.value = value;
         }
     }
 }
 
-pub struct ListIterator<T> {
-    current: Option<Rc<RefCell<Node<T>>>>,
+pub struct ListIterator<'a, T> {
+    current: Option<&'a Node<T>>,
 }
 
-impl<T: Clone> Iterator for ListIterator<T> {
-    type Item = T;
+impl<'a, T> Iterator for ListIterator<'a, T> {
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(node) = self.current.clone() {
-            self.current = node.borrow().next.clone();
-            Some(node.borrow().value.clone())
+        if let Some(node) = self.current {
+            self.current = node.next.as_deref();
+            Some(&node.value)
         } else {
             None
         }
@@ -210,7 +183,7 @@ mod tests {
         list.push_back(2);
         list.push_back(3);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -221,7 +194,7 @@ mod tests {
         list.push_front(2);
         list.push_front(3);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![3, 2, 1]);
     }
 
@@ -231,10 +204,10 @@ mod tests {
         list.push_back(1);
         list.push_back(2);
         list.push_back(4);
-        assert_eq!(list.iter().collect::<Vec<i32>>(), vec![1, 2, 4]);
+        assert_eq!(list.iter().copied().collect::<Vec<i32>>(), vec![1, 2, 4]);
         list.insert_after(1, 3);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3, 4]);
     }
 
@@ -248,11 +221,11 @@ mod tests {
 
         let new_list = list.split_at(2).unwrap();
 
-        let result1: Vec<i32> = list.iter().collect();
-        assert_eq!(result1, vec![1, 2]);
-
-        let result2: Vec<i32> = new_list.iter().collect();
+        let result2: Vec<i32> = new_list.iter().copied().collect();
         assert_eq!(result2, vec![3, 4]);
+
+        let result1: Vec<i32> = list.iter().copied().collect();
+        assert_eq!(result1, vec![1, 2]);
     }
 
     #[test]
@@ -262,7 +235,7 @@ mod tests {
         list.push_back(2);
         list.push_back(3);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -273,7 +246,7 @@ mod tests {
         list.push_back(2);
         list.push_back(3);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -282,14 +255,14 @@ mod tests {
         let mut list: LinkedList<i32> = LinkedList::new();
         list.push_front(1);
         list.push_back(2);
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2]);
         list.push_front(3);
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![3, 1, 2]);
         list.push_back(4);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![3, 1, 2, 4]);
     }
 
@@ -302,7 +275,7 @@ mod tests {
 
         list.insert_after(5, 4);
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -317,7 +290,7 @@ mod tests {
 
         assert!(new_list.is_none());
 
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -338,9 +311,9 @@ mod tests {
         let new_list = list.split_at(2);
         assert!(new_list.is_some());
         let new_list = new_list.unwrap();
-        let result: Vec<i32> = new_list.iter().collect();
+        let result: Vec<i32> = new_list.iter().copied().collect();
         assert_eq!(result, vec![3, 4]);
-        assert_eq!(list.iter().collect::<Vec<i32>>(), vec![1, 2]);
+        assert_eq!(list.iter().copied().collect::<Vec<i32>>(), vec![1, 2]);
     }
 
     #[test]
@@ -354,9 +327,9 @@ mod tests {
         let new_list = list.split_at(2);
         assert!(new_list.is_some());
         let new_list = new_list.unwrap();
-        let result: Vec<i32> = new_list.iter().collect();
+        let result: Vec<i32> = new_list.iter().copied().collect();
         assert_eq!(result, vec![3, 4, 5]);
-        assert_eq!(list.iter().collect::<Vec<i32>>(), vec![1, 2]);
+        assert_eq!(list.iter().copied().collect::<Vec<i32>>(), vec![1, 2]);
     }
 
     #[test]
@@ -375,7 +348,7 @@ mod tests {
         list.push_back(2);
         list.push_back(3);
         list.change_value_by_index(1, 4);
-        let result: Vec<i32> = list.iter().collect();
+        let result: Vec<i32> = list.iter().copied().collect();
         assert_eq!(result, vec![1, 4, 3]);
     }
 }
