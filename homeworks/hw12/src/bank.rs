@@ -132,7 +132,7 @@ impl Bank {
         let account = operation.source_account.clone();
         self.accounts_history
             .entry(account)
-            .or_insert(vec![])
+            .or_default()
             .push(operation.id.clone());
 
         if let OperationType::Transfer { ref target_account } = operation.operation_type {
