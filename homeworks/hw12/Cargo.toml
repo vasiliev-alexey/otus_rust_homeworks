@@ -1,0 +1,24 @@
+[package]
+name = "bank_engine"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ulid = "1.1.0"
+thiserror = "1.0.49"
+log = "^0.4.20"
+env_logger = "^0.10.0"
+test-env-helpers = "0.2.2"
+serde = { version = "1.0.188", features = ["derive"] }
+rand = "0.8.5"
