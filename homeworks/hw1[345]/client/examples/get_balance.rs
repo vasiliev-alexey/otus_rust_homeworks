@@ -1,51 +1,30 @@
-use client::BankClient;
-use log::{error, info};
+use client::client::BankClient;
+use log::info;
+use std::error::Error;
 
 use shared::constants::{LOG_LEVEL, SERVER_PATH};
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger based on the environment variable `LOG_LEVEL`.
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
     // Connect to the bank server.
-    let client = BankClient::connect(SERVER_PATH);
+    let mut client = BankClient::connect(SERVER_PATH)?;
 
-    // Check if there was an error connecting to the server.
-    if let Err(err) = &client {
-        error!("Failed to connect: {}", err);
-        return;
-    } else {
-        info!("Successfully connected to the bank server");
-    }
-
-    // Unwrap the client from the `Result`.
-    let mut client = client.unwrap();
+    info!("Successfully connected to the bank server");
 
     // Create two accounts: "Alice" and "Bob".
-    if let Err(err) = client.create_account("Alice") {
-        error!("Failed to create account: {}", err);
-        return;
-    }
-    if let Err(err) = client.create_account("Bob") {
-        error!("Failed to create account: {}", err);
-        return;
-    }
+    let _ = client.create_account("Alice")?;
+    let _ = client.create_account("Bob")?;
 
     // Deposit 100.0 into the account with the name "Alice".
-    if let Err(err) = client.deposit("Alice", 100.0) {
-        error!("Failed to deposit amount: {}", err);
-        return;
-    }
+    let _deposit_trid = client.deposit("Alice", 100.0)?;
 
-    // Transfer 25.0 from "Alice" to "Bob".
-    if let Err(err) = client.transfer("Alice", "Bob", 25.0) {
-        error!("Failed to transfer amount: {}", err);
-        return;
-    }
+    let bob_trid = client.transfer("Alice", "Bob", 25.0)?;
 
     // Get the balances of "Alice" and "Bob".
-    let alice_balance = client.get_balance("Alice").unwrap();
-    let bob_balance = client.get_balance("Bob").unwrap();
+    let alice_balance = client.get_balance("Alice")?;
+    let bob_balance = client.get_balance("Bob")?;
 
     // Assert that the balances are correct.
     assert_eq!(alice_balance, 75.0);
@@ -53,4 +32,5 @@ fn main() {
 
     // Log the balances of "Alice".
     info!("Alice balance: {}", alice_balance);
+    Ok(())
 }

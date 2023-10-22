@@ -1,31 +1,19 @@
-use client::BankClient;
-use log::{error, info};
+use client::client::BankClient;
+use log::info;
+use std::error::Error;
 
 use shared::constants::{LOG_LEVEL, SERVER_PATH};
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger based on the environment variable `LOG_LEVEL`.
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
-
     // Connect to the bank server.
-    let client = BankClient::connect(SERVER_PATH);
-
-    // Check if there was an error connecting to the server.
-    if let Err(err) = client {
-        error!("Failed to connect: {}", err);
-        return;
-    } else {
-        info!("Successfully connected to the bank server");
-    }
-
-    // Unwrap the client from the `Result`.
-    let mut client = client.unwrap();
-
+    let mut client = BankClient::connect(SERVER_PATH)?;
     // Create an account with the name "Hello".
-    let result = client.create_account("Hello");
-
-    // Handle any errors that occurred during account creation.
-    if let Err(err) = result {
-        error!("Failed to create account: {}", err);
-    }
+    let transaction_id = client.create_account("Hello")?;
+    info!(
+        "successfully created account with transaction id: {}",
+        transaction_id
+    );
+    Ok(())
 }

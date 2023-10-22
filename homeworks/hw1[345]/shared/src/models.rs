@@ -1,9 +1,20 @@
-use bank_engine::bank::Operation;
+use crate::constants::BUFFER_SIZE;
+use bank_engine::bank::{Operation, TransactionId};
 use serde::{Deserialize, Serialize};
+use std::io::{Read, Write};
+use std::net::TcpStream;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Request {
     pub payload: RequestPayload,
+}
+
+impl Request {
+    pub fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
+        let json = serde_json::to_vec(&self)?;
+        stream.write_all(&json)?;
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -46,19 +57,21 @@ pub enum ResponsePayload {
     Error(String),
 
     /// Indicates that an account was successfully created.
-    AccountCreated,
+    AccountCreated(TransactionId),
 
     /// Indicates an error occurred while creating an account with the specified error message.
     AccountCreatedError(String),
 
     /// Indicates that a deposit was successful.
-    DepositSuccess,
+    DepositSuccess(TransactionId),
 
     /// Indicates that a withdrawal was successful.
-    WithdrawSuccess,
+    WithdrawSuccess(TransactionId),
+    /// Indicates an error occurred while making a withdrawal with the specified error message.
+    WithdrawalError(String),
 
     /// Indicates that a transfer was successful.
-    TransferSuccess,
+    TransferSuccess(TransactionId),
 
     /// Represents the balance of an account with the specified amount.
     Balance(f64),
@@ -119,4 +132,21 @@ pub struct TransferParams {
 pub struct Response {
     /// The payload of the response.
     pub payload: ResponsePayload,
+}
+
+pub type ResponseResult = Result<Response, std::io::Error>;
+
+impl Response {
+    pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
+        let mut buf = [0; BUFFER_SIZE];
+        let size = stream.read(&mut buf)?;
+        let resp = serde_json::from_slice::<Response>(&buf[..size])?;
+        Ok(resp)
+    }
+
+    pub fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
+        let json = serde_json::to_vec(&self)?;
+        stream.write_all(&json)?;
+        Ok(())
+    }
 }

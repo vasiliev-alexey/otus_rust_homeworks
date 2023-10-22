@@ -1,65 +1,33 @@
-use client::BankClient;
-use log::{error, info};
+use client::client::BankClient;
+use log::info;
+use std::error::Error;
 
 use shared::constants::{LOG_LEVEL, SERVER_PATH};
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger based on the environment variable `LOG_LEVEL`.
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
     // Connect to the bank server.
-    let client = BankClient::connect(SERVER_PATH);
+    let mut client = BankClient::connect(SERVER_PATH)?;
 
-    // Check if there was an error connecting to the server.
-    if let Err(err) = &client {
-        error!("Failed to connect: {}", err);
-        return;
-    } else {
-        info!("Successfully connected to the bank server");
-    }
-
-    // Unwrap the client from the `Result`.
-    let mut client = client.unwrap();
+    info!("Successfully connected to the bank server");
 
     // Create two accounts: "Alice" and "Bob".
-    if let Err(err) = client.create_account("Alice") {
-        error!("Failed to create account: {}", err);
-        return;
-    }
-    if let Err(err) = client.create_account("Bob") {
-        error!("Failed to create account: {}", err);
-        return;
-    }
+    client.create_account("Alice")?;
+
+    client.create_account("Bob")?;
 
     // Deposit 100.0 into the account with the name "Alice".
-    if let Err(err) = client.deposit("Alice", 100.0) {
-        error!("Failed to deposit amount: {}", err);
-        return;
-    }
+    client.deposit("Alice", 100.0)?;
 
     // Transfer 25.0 from "Alice" to "Bob".
-    if let Err(err) = client.transfer("Alice", "Bob", 25.0) {
-        error!("Failed to transfer amount: {}", err);
-        return;
-    }
+    client.transfer("Alice", "Bob", 25.0)?;
 
     // Get the transaction history for the account "Alice".
-    let history = client.get_history_for_account("Alice");
-
-    // Check if there was an error getting the history.
-    if let Err(err) = &history {
-        println!(
-            "Failed to get transaction history for account 'Alice': {}",
-            err
-        );
-        return;
-    }
-
-    // Unwrap the history from the `Result`.
-    let history = history.unwrap();
+    let history = client.get_history_for_account("Alice")?;
 
     // Print each transaction in the history.
-    for transaction in history {
-        info!("{:?}", transaction);
-    }
+    history.iter().for_each(|oper| info!("{:?}", oper));
+    Ok(())
 }
