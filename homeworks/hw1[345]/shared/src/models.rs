@@ -1,4 +1,4 @@
-use crate::constants::BUFFER_SIZE;
+use crate::constants::MAX_CHUNK_BYTE_SIZE;
 use bank_engine::bank::{Operation, TransactionId};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -64,6 +64,8 @@ pub enum ResponsePayload {
 
     /// Indicates that a deposit was successful.
     DepositSuccess(TransactionId),
+    /// Indicates an error occurred while making a deposit with the specified error message.
+    DepositError(String),
 
     /// Indicates that a withdrawal was successful.
     WithdrawSuccess(TransactionId),
@@ -78,6 +80,8 @@ pub enum ResponsePayload {
 
     /// Represents the history of operations for an account with the specified list of operations.
     History(Vec<Operation>),
+    /// Represents an error occurred while getting the history with the specified error message.
+    DeserializeError(String),
 }
 
 /// Represents the parameters for an open account request.
@@ -138,9 +142,16 @@ pub type ResponseResult = Result<Response, std::io::Error>;
 
 impl Response {
     pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
-        let mut buf = [0; BUFFER_SIZE];
-        let size = stream.read(&mut buf)?;
-        let resp = serde_json::from_slice::<Response>(&buf[..size])?;
+        let mut received: Vec<u8> = vec![];
+        let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
+        loop {
+            let bytes_read = stream.read(&mut chunk)?;
+            received.extend_from_slice(&chunk[..bytes_read]);
+            if bytes_read < MAX_CHUNK_BYTE_SIZE {
+                break;
+            }
+        }
+        let resp = serde_json::from_slice::<Response>(received.as_slice())?;
         Ok(resp)
     }
 

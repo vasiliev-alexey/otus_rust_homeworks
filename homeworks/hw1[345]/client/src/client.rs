@@ -9,10 +9,9 @@ use shared::models::{
 use shared::{Operation, TransactionId};
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::Shutdown::Both;
 use std::net::{TcpStream, ToSocketAddrs};
-use std::str::from_utf8;
 use thiserror::Error;
 
 pub struct BankClient {
@@ -38,7 +37,7 @@ impl Drop for BankClient {
         let _ = self.stream.shutdown(Both);
     }
 }
-const BUFFER_SIZE: usize = 1024;
+
 impl BankClient {
     /// Establishes a connection to the bank server.
     ///
@@ -86,15 +85,16 @@ impl BankClient {
             payload: RequestPayload::Ping,
         };
         let json = serde_json::to_string(&data_req).unwrap();
-        let _ = stream.write(json.as_bytes()).unwrap();
 
-        let mut buf = [0; BUFFER_SIZE];
-        let size = stream.read(&mut buf)?;
-        let resp = serde_json::from_str::<Response>(from_utf8(&buf[0..size]).unwrap());
-        if resp.is_err() || resp.unwrap().payload != ResponsePayload::HandShakeEstablished {
-            let msg = format!("received: {:?}", buf);
+        let _ = stream.write(json.as_bytes())?;
+
+        let resp = Response::new(&mut stream)?;
+        if resp.payload != ResponsePayload::HandShakeEstablished {
+            error!("Handshake error: {:?}", resp.payload);
+            let msg = format!("received: {:?}", resp.payload);
             return Err(ConnectError::BadHandshake(msg));
         }
+
         Ok(Self { stream })
     }
     /// Creates a new bank account for the client with the specified name.

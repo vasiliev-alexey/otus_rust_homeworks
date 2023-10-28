@@ -2,14 +2,14 @@ use client::client::BankClient;
 use log::info;
 use std::error::Error;
 
-use shared::constants::{LOG_LEVEL, SERVER_PATH};
+use shared::constants::{LOG_LEVEL, SERVER_ADDRESS};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger based on the environment variable `LOG_LEVEL`.
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
     // Connect to the bank server.
-    let mut client = BankClient::connect(SERVER_PATH)?;
+    let mut client = BankClient::connect(SERVER_ADDRESS)?;
 
     info!("Successfully connected to the bank server");
 
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Deposit 100.0 into the account with the name "Alice".
     let _deposit_trid = client.deposit("Alice", 100.0)?;
 
-    let bob_trid = client.transfer("Alice", "Bob", 25.0)?;
+    let _ = client.transfer("Alice", "Bob", 25.0)?;
 
     // Get the balances of "Alice" and "Bob".
     let alice_balance = client.get_balance("Alice")?;
