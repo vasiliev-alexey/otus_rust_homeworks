@@ -51,8 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (i, stream) in connections.iter_mut().enumerate() {
             match handle_client_requests(&mut bank, stream.try_clone().unwrap()) {
                 Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(e) => {
-                    // Тут грязь - но не нашел как распаковать -- need help
                     if !e.to_string().contains("Resource temporarily unavailable") {
                         error!("{}", e);
                         broken_connections.push(i);
@@ -78,10 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// * `stream` - A mutable reference to a `TcpStream` object.
 ///
 /// ```
-fn handle_client_requests(
-    bank: &mut impl BankTrait,
-    mut stream: TcpStream,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_client_requests(bank: &mut impl BankTrait, mut stream: TcpStream) -> std::io::Result<()> {
     loop {
         let mut received: Vec<u8> = vec![];
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
@@ -105,7 +102,10 @@ fn handle_client_requests(
             };
             error!("Deserialize error: {:?}", err);
             resp.send(&mut stream)?;
-            return Err("Deserialize error".into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Deserialize error",
+            ));
         }
         let req = req.unwrap();
 
