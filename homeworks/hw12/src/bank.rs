@@ -17,6 +17,12 @@ const MONEY_ZERO: Money = 0.0;
 
 pub type TransactionId = String;
 
+pub enum BankResponse {
+    Transaction(Result<TransactionId>),
+    History(Result<Vec<Operation>>),
+    Balance(Result<Money>),
+}
+
 #[derive(Default)]
 pub struct Bank {
     accounts: HashMap<String, RefCell<Money>>,
@@ -405,8 +411,8 @@ impl BankTrait for Bank {
     /// BankError
     /// Returns an error if the specified account does not exist.
     /// ```
-    fn get_history(&self) -> Result<Vec<&Operation>, BankError> {
-        let hist = self.history.iter().map(|k| k.1).collect::<Vec<_>>();
+    fn get_history(&self) -> Result<Vec<Operation>, BankError> {
+        let hist = self.history.iter().map(|k| k.1.clone()).collect::<Vec<_>>();
         Ok(hist)
     }
 
@@ -585,7 +591,7 @@ pub trait BankTrait {
     ///
     /// Returns an error if the specified account does not exist.
     /// ```
-    fn get_history(&self) -> Result<Vec<&Operation>>;
+    fn get_history(&self) -> Result<Vec<Operation>>;
 
     /// Returns the transaction history of the specified account.
     ///

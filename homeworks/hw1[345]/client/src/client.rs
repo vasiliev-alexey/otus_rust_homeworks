@@ -235,6 +235,9 @@ impl BankClient {
 
         if let ResponsePayload::TransferSuccess(transaction_id) = response.payload {
             Ok(transaction_id.to_owned())
+        } else if let ResponsePayload::SomeAccountError(error_message) = response.payload {
+            error!("Transfer error {:?}", error_message);
+            Err(UnexpectedResponseData { error_message }.into())
         } else {
             error!("unexpected response {:?}", response);
             Err(UnexpectedResponseData {

@@ -1,4 +1,5 @@
 use crate::constants::MAX_CHUNK_BYTE_SIZE;
+use crate::errors::ProcessingErrorsResult;
 use bank_engine::bank::{Operation, TransactionId};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -74,6 +75,8 @@ pub enum ResponsePayload {
 
     /// Indicates that a transfer was successful.
     TransferSuccess(TransactionId),
+    /// Indicates an error occurred while making a transfer to same account
+    SomeAccountError(String),
 
     /// Represents the balance of an account with the specified amount.
     Balance(f64),
@@ -138,7 +141,8 @@ pub struct Response {
     pub payload: ResponsePayload,
 }
 
-pub type ResponseResult = Result<Response, std::io::Error>;
+// pub type ResponseResult = Result<Response, std::io::Error>;
+pub type ResponseResult = Result<Response, ProcessingErrorsResult>;
 
 impl Response {
     pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
