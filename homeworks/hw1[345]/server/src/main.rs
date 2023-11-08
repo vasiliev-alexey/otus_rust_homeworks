@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(SERVER_ADDRESS).unwrap();
     info!(
         "Server listening on port {}",
-        SERVER_ADDRESS.split(':').nth(1).unwrap_or_default()
+        listener.local_addr().unwrap().port()
     );
 
     listener.set_nonblocking(true).unwrap();
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(e) => {
                     if !e.to_string().contains("Resource temporarily unavailable") {
-                        error!("{}", e);
+                        error!("Err: {}", e);
                         broken_connections.push(i);
                     }
                 }
@@ -64,6 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for &idx in &broken_connections {
             connections.swap_remove(idx);
         }
+        broken_connections.clear();
     }
 }
 
@@ -91,7 +92,10 @@ fn handle_client_requests(bank: &mut impl BankTrait, mut stream: TcpStream) -> s
         }
 
         if received.is_empty() {
-            return Ok(());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Received empty chunk",
+            ));
         }
         debug!("handling client");
         let req = serde_json::from_slice::<Request>(received.as_slice());
