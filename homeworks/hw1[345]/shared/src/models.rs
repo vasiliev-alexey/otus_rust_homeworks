@@ -2,8 +2,8 @@ use crate::constants::MAX_CHUNK_BYTE_SIZE;
 use crate::errors::ProcessingErrorsResult;
 use bank_engine::bank::{Operation, TransactionId};
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
-use std::net::TcpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Request {
@@ -11,9 +11,9 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
+    pub async fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
         let json = serde_json::to_vec(&self)?;
-        stream.write_all(&json)?;
+        stream.write_all(&json).await?;
         Ok(())
     }
 }
@@ -145,11 +145,11 @@ pub struct Response {
 pub type ResponseResult = Result<Response, ProcessingErrorsResult>;
 
 impl Response {
-    pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
+    pub async fn new(stream: &mut TcpStream) -> Result<Self, std::io::Error> {
         let mut received: Vec<u8> = vec![];
-        let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
+        let mut chunk = vec![0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
-            let bytes_read = stream.read(&mut chunk)?;
+            let bytes_read = stream.read(&mut chunk).await.unwrap();
             received.extend_from_slice(&chunk[..bytes_read]);
             if bytes_read < MAX_CHUNK_BYTE_SIZE {
                 break;
@@ -159,9 +159,9 @@ impl Response {
         Ok(resp)
     }
 
-    pub fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
+    pub async fn send(&self, stream: &mut TcpStream) -> Result<(), std::io::Error> {
         let json = serde_json::to_vec(&self)?;
-        stream.write_all(&json)?;
+        stream.write_all(&json).await?;
         Ok(())
     }
 }

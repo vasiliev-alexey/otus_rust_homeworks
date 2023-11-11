@@ -1,8 +1,8 @@
 use log::{debug, error, info};
-use std::io::Read;
-use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 use bank_engine::bank::BankResponse::Transaction;
 use bank_engine::bank::{Bank, BankError, BankResponse, BankTrait};
@@ -21,10 +21,11 @@ use RequestPayload::*;
 /// It initializes the logging, creates a new `Bank` object, binds a TCP listener to the specified server path,
 /// start p processing thread for Bank
 /// and starts accepting incoming connections. For each incoming connection spawn new thread for processing requests.
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
-    let listener = TcpListener::bind(SERVER_ADDRESS).unwrap();
+    let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
     info!(
         "Server listening on port {}",
         SERVER_ADDRESS.split(':').nth(1).unwrap_or_default()
@@ -32,15 +33,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel::<(RequestPayload, Sender<BankResponse>)>();
     create_processing_thread(rx);
-    listener.set_nonblocking(true).unwrap();
+    // listener.set_nonblocking(true).unwrap();
     loop {
-        if let Some(stream) = try_accept(&listener) {
+        if let Some(stream) = try_accept(&listener).await {
             let tx = tx.clone();
-            std::thread::spawn(move || match handle_client_requests(stream, tx) {
-                Ok(_) => {}
-                Err(e) => {
-                    if !e.to_string().contains("Resource temporarily unavailable") {
-                        error!("{}", e);
+            tokio::spawn(async move {
+                match handle_client_requests(stream, tx).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        if !e.to_string().contains("Resource temporarily unavailable") {
+                            error!("{}", e);
+                        }
                     }
                 }
             });
@@ -117,8 +120,8 @@ fn create_processing_thread(chanel_connector: Receiver<(RequestPayload, Sender<B
 /// Returns an `Option<TcpStream>` representing the accepted TCP stream if successful,
 /// or `None` if the operation would block or an error occurred.
 ///
-fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
-    match listener.accept() {
+async fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
+    match listener.accept().await {
         Ok((stream, addr)) => {
             println!("Accepted connection with {}", addr);
             Some(stream)
@@ -142,7 +145,7 @@ fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
 /// * `processing_sender` - A mutable reference to a `Sender<(RequestPayload, Sender<BankResponse>)>`
 ///
 /// ```
-fn handle_client_requests(
+async fn handle_client_requests(
     mut stream: TcpStream,
     processing_sender: Sender<(RequestPayload, Sender<BankResponse>)>,
 ) -> Result<(), ProcessingErrorsResult> {
@@ -151,7 +154,7 @@ fn handle_client_requests(
         let mut received: Vec<u8> = vec![];
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
-            let bytes_read = stream.read(&mut chunk)?;
+            let bytes_read = stream.read(&mut chunk).await?;
             received.extend_from_slice(&chunk[..bytes_read]);
             if bytes_read < MAX_CHUNK_BYTE_SIZE {
                 break;
@@ -167,7 +170,7 @@ fn handle_client_requests(
                 payload: ResponsePayload::DeserializeError(err.to_string()),
             };
             error!("Deserialize error: {:?}", err);
-            resp.send(&mut stream)?;
+            resp.send(&mut stream).await?;
         }
         let req = req.unwrap();
         let resp = match &req.payload {
@@ -181,12 +184,12 @@ fn handle_client_requests(
             GetHistoryForAccount(_) => process_history_for_account(req.payload, &processing_sender),
             CloseConnection => {
                 info!("Closing connection with {}", stream.peer_addr()?);
-                stream.shutdown(Shutdown::Both)?;
+                stream.shutdown().await?;
                 return Ok(());
             }
         }?;
         debug!("send data to client");
-        resp.send(&mut stream)?;
+        resp.send(&mut stream).await?;
     }
 }
 

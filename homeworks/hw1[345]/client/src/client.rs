@@ -9,33 +9,14 @@ use shared::models::{
 use shared::{Operation, TransactionId};
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::io::Write;
-use std::net::Shutdown::Both;
-use std::net::{TcpStream, ToSocketAddrs};
+
 use thiserror::Error;
+use tokio::net::{TcpStream, ToSocketAddrs};
+
+use tokio::io::AsyncWriteExt;
 
 pub struct BankClient {
     stream: TcpStream,
-}
-
-/// Performs any necessary cleanup before the BankClient instance is dropped.
-///
-/// This method is automatically called when the BankClient instance goes out of scope
-/// or is explicitly dropped using the `drop` function.
-/// // Do some operations with the client...
-///
-/// // The `drop` function is automatically called at the end of the scope
-/// // to clean up the resources associated with the client.
-/// ```
-impl Drop for BankClient {
-    fn drop(&mut self) {
-        let data_req = Request {
-            payload: RequestPayload::CloseConnection,
-        };
-        let json = serde_json::to_string(&data_req).unwrap();
-        self.stream.write_all(json.as_bytes()).unwrap();
-        let _ = self.stream.shutdown(Both);
-    }
 }
 
 impl BankClient {
@@ -62,13 +43,24 @@ impl BankClient {
     /// let connected_client = BankClient::connect("127.0.0.1:8080");
     /// ```
 
-    pub fn connect<Addrs>(addr: Addrs) -> ConnectResult<Self>
+    pub async fn connect<Addrs>(addr: Addrs) -> ConnectResult<Self>
     where
         Addrs: ToSocketAddrs,
     {
-        let stream = TcpStream::connect(addr)?;
-        BankClient::handshake(stream)
+        let stream = TcpStream::connect(addr).await?;
+        BankClient::handshake(stream).await
     }
+
+    /// Sends a request to the server to close the connection and shuts down the stream.
+    pub async fn shutdown(&mut self) {
+        let data_req = Request {
+            payload: RequestPayload::CloseConnection,
+        };
+        let json = serde_json::to_string(&data_req).unwrap();
+        let _ = self.stream.write(json.as_bytes()).await;
+        let _ = self.stream.shutdown().await;
+    }
+
     /// Performs a handshake with the bank server to establish a secure connection.
     ///
     /// This method initiates a handshake protocol with the bank server to establish a secure connection.
@@ -80,15 +72,15 @@ impl BankClient {
     /// ConnectResult - Result of the handshake, `Ok` if the handshake was successful, `Err` otherwise.
     ///
     /// ```
-    fn handshake(mut stream: TcpStream) -> ConnectResult<Self> {
+    async fn handshake(mut stream: TcpStream) -> ConnectResult<Self> {
         let data_req = Request {
             payload: RequestPayload::Ping,
         };
         let json = serde_json::to_string(&data_req).unwrap();
 
-        let _ = stream.write(json.as_bytes())?;
+        let _ = stream.write(json.as_bytes()).await?;
 
-        let resp = Response::new(&mut stream)?;
+        let resp = Response::new(&mut stream).await?;
         if resp.payload != ResponsePayload::HandShakeEstablished {
             error!("Handshake error: {:?}", resp.payload);
             let msg = format!("received: {:?}", resp.payload);
@@ -115,16 +107,16 @@ impl BankClient {
     /// GenericError - If the response payload is not `AccountCreated`.
     ///    
     /// ```
-    pub fn create_account(&mut self, account: &str) -> ResponseResult<TransactionId> {
+    pub async fn create_account(&mut self, account: &str) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::OpenAccount(OpenAccountRequestParams {
                 account: account.to_string(),
             }),
         };
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::AccountCreated(transaction_id) = &response.payload {
@@ -148,7 +140,7 @@ impl BankClient {
     /// Returns an GenericError if the deposit fails or if the response payload is not `DepositSuccess`.
     ///
     /// ```
-    pub fn deposit(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
+    pub async fn deposit(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::Deposit(DepositParams {
                 account: account.to_string(),
@@ -156,9 +148,9 @@ impl BankClient {
             }),
         };
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
 
         if let ResponsePayload::DepositSuccess(transaction_id) = response.payload {
             Ok(transaction_id.to_owned())
@@ -178,7 +170,7 @@ impl BankClient {
     /// Returns an error if there is an error response or if the response payload is not `WithdrawSuccess`.
     ///
     /// ```
-    pub fn withdraw(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
+    pub async fn withdraw(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::Withdraw(WithdrawParams {
                 account: account.to_string(),
@@ -186,9 +178,9 @@ impl BankClient {
             }),
         };
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::WithdrawSuccess(transaction_id) = response.payload {
@@ -213,7 +205,7 @@ impl BankClient {
     /// Returns an error if there is an error response or if the response payload is not `TransferSuccess`.
     ///
     /// ```
-    pub fn transfer(
+    pub async fn transfer(
         &mut self,
         sender_account: &str,
         receiver_account: &str,
@@ -228,9 +220,9 @@ impl BankClient {
         };
 
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
-
-        let response = Response::new(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
+        debug!("sending after");
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::TransferSuccess(transaction_id) = response.payload {
@@ -265,7 +257,7 @@ impl BankClient {
     ///
     /// The balance of the specified account.
     /// ```
-    pub fn get_balance(&mut self, account: &str) -> ResponseResult<f64> {
+    pub async fn get_balance(&mut self, account: &str) -> ResponseResult<f64> {
         let data_req = Request {
             payload: RequestPayload::GetBalance(GetBalanceAccountRequestParams {
                 account: account.to_string(),
@@ -273,9 +265,9 @@ impl BankClient {
         };
 
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         let bal = &response.payload;
@@ -300,13 +292,13 @@ impl BankClient {
     /// The transaction history as a vector of `Operation` objects.
     ///
     /// ```
-    pub fn get_history(&mut self) -> ResponseResult<Vec<Operation>> {
+    pub async fn get_history(&mut self) -> ResponseResult<Vec<Operation>> {
         let data_req = Request {
             payload: RequestPayload::GetHistory(),
         };
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         let bal = &response.payload;
@@ -335,14 +327,17 @@ impl BankClient {
     /// The transaction history for the specified account as a vector of `Operation` objects.
     /// ```
 
-    pub fn get_history_for_account(&mut self, account: &str) -> ResponseResult<Vec<Operation>> {
+    pub async fn get_history_for_account(
+        &mut self,
+        account: &str,
+    ) -> ResponseResult<Vec<Operation>> {
         let data_req = Request {
             payload: RequestPayload::GetHistoryForAccount(account.to_string()),
         };
         debug!("sending: {:?}", &data_req);
-        data_req.send(&mut self.stream)?;
+        data_req.send(&mut self.stream).await?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::new(&mut self.stream).await?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::History(account_history) = &response.payload {
