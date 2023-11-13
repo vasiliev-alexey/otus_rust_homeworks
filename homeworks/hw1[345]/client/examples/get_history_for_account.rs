@@ -29,5 +29,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Print each transaction in the history.
     history.iter().for_each(|oper| info!("{:?}", oper));
+    client.shutdown();
     Ok(())
 }

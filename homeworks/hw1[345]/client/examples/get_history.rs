@@ -32,5 +32,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     history
         .iter()
         .for_each(|transaction| info!("{:?}", transaction));
+    client.shutdown();
     Ok(())
 }

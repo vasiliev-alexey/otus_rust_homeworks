@@ -28,6 +28,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Err(err) = result {
         error!("Withdraw error: {:?}", err);
     }
-
+    client.shutdown();
     Ok(())
 }

@@ -18,5 +18,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "successfully deposited with transaction id: {}",
         deposit_transaction_id
     );
+    client.shutdown();
     Ok(())
 }

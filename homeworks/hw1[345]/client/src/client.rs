@@ -10,32 +10,11 @@ use shared::{Operation, TransactionId};
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::io::Write;
-use std::net::Shutdown::Both;
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use thiserror::Error;
 
 pub struct BankClient {
     stream: TcpStream,
-}
-
-/// Performs any necessary cleanup before the BankClient instance is dropped.
-///
-/// This method is automatically called when the BankClient instance goes out of scope
-/// or is explicitly dropped using the `drop` function.
-/// // Do some operations with the client...
-///
-/// // The `drop` function is automatically called at the end of the scope
-/// // to clean up the resources associated with the client.
-/// ```
-impl Drop for BankClient {
-    fn drop(&mut self) {
-        let data_req = Request {
-            payload: RequestPayload::CloseConnection,
-        };
-        let json = serde_json::to_string(&data_req).unwrap();
-        self.stream.write_all(json.as_bytes()).unwrap();
-        let _ = self.stream.shutdown(Both);
-    }
 }
 
 impl BankClient {
@@ -69,6 +48,17 @@ impl BankClient {
         let stream = TcpStream::connect(addr)?;
         BankClient::handshake(stream)
     }
+
+    /// Sends a request to the server to close the connection and shuts down the stream.
+    pub fn shutdown(&mut self) {
+        let data_req = Request {
+            payload: RequestPayload::CloseConnection,
+        };
+        let json = serde_json::to_string(&data_req).unwrap();
+        let _ = self.stream.write(json.as_bytes());
+        let _ = self.stream.shutdown(Shutdown::Both);
+    }
+
     /// Performs a handshake with the bank server to establish a secure connection.
     ///
     /// This method initiates a handshake protocol with the bank server to establish a secure connection.
