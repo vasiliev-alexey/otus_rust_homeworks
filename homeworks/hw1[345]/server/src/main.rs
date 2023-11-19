@@ -1,4 +1,4 @@
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::mpsc;
@@ -19,8 +19,8 @@ use RequestPayload::*;
 /// The main function of the program.
 ///
 /// It initializes the logging, creates a new `Bank` object, binds a TCP listener to the specified server path,
-/// start p processing thread for Bank
-/// and starts accepting incoming connections. For each incoming connection spawn new thread for processing requests.
+/// starts processing thread for Bank
+/// and starts accepting incoming connections. For each incoming connection spawns new thread for processing requests.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
@@ -36,12 +36,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some(stream) = try_accept(&listener) {
             let tx = tx.clone();
-            std::thread::spawn(move || match handle_client_requests(stream, tx) {
-                Ok(_) => {}
-                Err(e) => {
-                    if !e.to_string().contains("Resource temporarily unavailable") {
-                        error!("{}", e);
-                    }
+            std::thread::spawn(move || {
+                if let Err(ProcessingErrorsResult::Io(data)) = handle_client_requests(stream, tx) {
+                    error!("{}", data)
                 }
             });
         }
@@ -88,7 +85,7 @@ fn create_processing_thread(chanel_connector: Receiver<(RequestPayload, Sender<B
                         let balance = bank.get_balance(account.as_str());
                         callback_chanel.send(BankResponse::Balance(balance))
                     }
-                    GetHistory() => {
+                    GetHistory => {
                         let history = bank.get_history();
                         callback_chanel.send(BankResponse::History(history))
                     }
@@ -125,23 +122,26 @@ fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
         }
         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => None,
         Err(e) => {
-            println!("Failed to accept a connection: {}", e);
+            warn!("Failed to accept a connection: {}", e);
             None
         }
     }
 }
 
-/// Handles a client connection.
+/// Handles client requests by reading data from the provided TCP stream and processing the requests accordingly.
 ///
-/// This function takes a mutable reference to a `Bank` object and a `TcpStream` object,
-/// and performs some actions to handle the client connection.
+/// The function takes a mutable reference to a `TcpStream` object and a `Sender<(RequestPayload, Sender<BankResponse>)>` object as arguments.
+/// It returns a `Result<(), ProcessingErrorsResult>`, indicating success or failure of the handling process.
 ///
-/// # Arguments
+/// The function enters an infinite loop and waits for incoming data from the client. It reads the data from the stream in chunks and appends it to a vector.
+/// If no data is received, the function returns `Ok(())` to indicate that the connection has been closed.
+/// Otherwise, it tries to deserialize the received data into a `Request` object. If deserialization fails, it sends a deserialization error response to the client.
 ///
-/// * `stream` - A mutable reference to a `TcpStream` object.
-/// * `processing_sender` - A mutable reference to a `Sender<(RequestPayload, Sender<BankResponse>)>`
+/// After successful deserialization, the function matches the payload of the `Request` object and calls the corresponding processing function.
+/// The processing functions are responsible for handling different types of requests such as ping, account creation, deposit, withdrawal, transfer, balance retrieval, history retrieval, and connection closure.
 ///
-/// ```
+/// Once the request is processed, the function sends the response back to the client using the `send` method of the `Response` object.
+/// The loop continues until the connection is closed by the client.
 fn handle_client_requests(
     mut stream: TcpStream,
     processing_sender: Sender<(RequestPayload, Sender<BankResponse>)>,
@@ -177,7 +177,7 @@ fn handle_client_requests(
             Withdraw(_) => process_withdraw(req.payload, &processing_sender),
             Transfer(_) => process_transfer(req.payload, &processing_sender),
             GetBalance(_) => process_get_balance(req.payload, &processing_sender),
-            GetHistory() => process_get_history(req.payload, &processing_sender),
+            GetHistory => process_get_history(req.payload, &processing_sender),
             GetHistoryForAccount(_) => process_history_for_account(req.payload, &processing_sender),
             CloseConnection => {
                 info!("Closing connection with {}", stream.peer_addr()?);

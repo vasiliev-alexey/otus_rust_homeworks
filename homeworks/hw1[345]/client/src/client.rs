@@ -26,7 +26,6 @@ pub struct BankClient {
 ///
 /// // The `drop` function is automatically called at the end of the scope
 /// // to clean up the resources associated with the client.
-/// ```
 impl Drop for BankClient {
     fn drop(&mut self) {
         let data_req = Request {
@@ -54,14 +53,9 @@ impl BankClient {
     ///
     /// # Examples
     ///
-    /// ```
-    ///
-    ///
     /// use client::client::BankClient;
     ///
     /// let connected_client = BankClient::connect("127.0.0.1:8080");
-    /// ```
-
     pub fn connect<Addrs>(addr: Addrs) -> ConnectResult<Self>
     where
         Addrs: ToSocketAddrs,
@@ -70,16 +64,9 @@ impl BankClient {
         BankClient::handshake(stream)
     }
     /// Performs a handshake with the bank server to establish a secure connection.
-    ///
-    /// This method initiates a handshake protocol with the bank server to establish a secure connection.
-    /// It ensures the authenticity and integrity of the communication by verifying the server's identity
-    /// and exchanging cryptographic keys.
-    ///
     /// # Returns
     ///
     /// ConnectResult - Result of the handshake, `Ok` if the handshake was successful, `Err` otherwise.
-    ///
-    /// ```
     fn handshake(mut stream: TcpStream) -> ConnectResult<Self> {
         let data_req = Request {
             payload: RequestPayload::Ping,
@@ -88,7 +75,7 @@ impl BankClient {
 
         let _ = stream.write(json.as_bytes())?;
 
-        let resp = Response::new(&mut stream)?;
+        let resp = Response::read(&mut stream)?;
         if resp.payload != ResponsePayload::HandShakeEstablished {
             error!("Handshake error: {:?}", resp.payload);
             let msg = format!("received: {:?}", resp.payload);
@@ -113,8 +100,6 @@ impl BankClient {
     /// # Errors
     /// AccountDuplicationError - If the account already exists.
     /// GenericError - If the response payload is not `AccountCreated`.
-    ///    
-    /// ```
     pub fn create_account(&mut self, account: &str) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::OpenAccount(OpenAccountRequestParams {
@@ -124,7 +109,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::AccountCreated(transaction_id) = &response.payload {
@@ -146,8 +131,6 @@ impl BankClient {
     /// # Errors
     ///
     /// Returns an GenericError if the deposit fails or if the response payload is not `DepositSuccess`.
-    ///
-    /// ```
     pub fn deposit(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::Deposit(DepositParams {
@@ -158,7 +141,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
 
         if let ResponsePayload::DepositSuccess(transaction_id) = response.payload {
             Ok(transaction_id.to_owned())
@@ -176,8 +159,6 @@ impl BankClient {
     /// # Errors
     ///
     /// Returns an error if there is an error response or if the response payload is not `WithdrawSuccess`.
-    ///
-    /// ```
     pub fn withdraw(&mut self, account: &str, amount: f64) -> ResponseResult<TransactionId> {
         let data_req = Request {
             payload: RequestPayload::Withdraw(WithdrawParams {
@@ -188,7 +169,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::WithdrawSuccess(transaction_id) = response.payload {
@@ -211,8 +192,6 @@ impl BankClient {
     /// # Errors
     ///
     /// Returns an error if there is an error response or if the response payload is not `TransferSuccess`.
-    ///
-    /// ```
     pub fn transfer(
         &mut self,
         sender_account: &str,
@@ -230,7 +209,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::TransferSuccess(transaction_id) = response.payload {
@@ -264,7 +243,6 @@ impl BankClient {
     /// # Returns
     ///
     /// The balance of the specified account.
-    /// ```
     pub fn get_balance(&mut self, account: &str) -> ResponseResult<f64> {
         let data_req = Request {
             payload: RequestPayload::GetBalance(GetBalanceAccountRequestParams {
@@ -275,7 +253,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         let bal = &response.payload;
@@ -302,11 +280,11 @@ impl BankClient {
     /// ```
     pub fn get_history(&mut self) -> ResponseResult<Vec<Operation>> {
         let data_req = Request {
-            payload: RequestPayload::GetHistory(),
+            payload: RequestPayload::GetHistory,
         };
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         let bal = &response.payload;
@@ -333,8 +311,6 @@ impl BankClient {
     /// # Returns
     ///
     /// The transaction history for the specified account as a vector of `Operation` objects.
-    /// ```
-
     pub fn get_history_for_account(&mut self, account: &str) -> ResponseResult<Vec<Operation>> {
         let data_req = Request {
             payload: RequestPayload::GetHistoryForAccount(account.to_string()),
@@ -342,7 +318,7 @@ impl BankClient {
         debug!("sending: {:?}", &data_req);
         data_req.send(&mut self.stream)?;
 
-        let response = Response::new(&mut self.stream)?;
+        let response = Response::read(&mut self.stream)?;
         debug!("received: {:?}", &response);
 
         if let ResponsePayload::History(account_history) = &response.payload {

@@ -84,7 +84,7 @@ pub struct AmountNegativeError {
 }
 
 #[derive(Debug, Error, PartialEq)]
-#[error("Insufficient funds for account `{0}` available `{1}` requested `{2}`", .account, .amount, .balance)]
+#[error("Insufficient funds for account `{0}` available `{1}` requested `{2}`", .account, .balance, .amount)]
 pub struct InsufficientFundsError {
     account: String,
     amount: Money,

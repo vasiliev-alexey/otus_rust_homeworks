@@ -23,8 +23,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             client.create_account(client_name.as_str()).unwrap();
             std::thread::sleep(std::time::Duration::from_secs(i));
-            let mut n = 100;
-            loop {
+            const N: u8 = 100;
+
+            for _ in 1..N {
                 std::thread::sleep(std::time::Duration::from_secs(10));
                 client.deposit(client_name.as_str(), 100.0).unwrap();
 
@@ -37,11 +38,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Err(e) => {
                         error!("Error {}: {}", i, e);
                     }
-                }
-
-                n -= 1;
-                if n == 0 {
-                    return;
                 }
             }
         }));

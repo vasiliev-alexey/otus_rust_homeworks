@@ -42,7 +42,7 @@ pub enum RequestPayload {
     CloseConnection,
 
     /// Represents a get history request without any parameters.
-    GetHistory(),
+    GetHistory,
 
     /// Represents a get history for account request with the specified account identifier.
     GetHistoryForAccount(String),
@@ -145,8 +145,8 @@ pub struct Response {
 pub type ResponseResult = Result<Response, ProcessingErrorsResult>;
 
 impl Response {
-    pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
-        let mut received: Vec<u8> = vec![];
+    pub fn read(stream: &mut impl Read) -> Result<Self, std::io::Error> {
+        let mut received: Vec<u8> = Vec::with_capacity(MAX_CHUNK_BYTE_SIZE);
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
             let bytes_read = stream.read(&mut chunk)?;
