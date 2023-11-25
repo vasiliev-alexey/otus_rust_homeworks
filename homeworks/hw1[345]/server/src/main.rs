@@ -21,7 +21,7 @@ use RequestPayload::*;
 /// It initializes the logging, creates a new `Bank` object, binds a TCP listener to the specified server path,
 /// start p processing thread for Bank
 /// and starts accepting incoming connections. For each incoming connection spawn new thread for processing requests.
-#[tokio::main]
+#[tokio::main(worker_threads = 1)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
@@ -150,7 +150,7 @@ async fn handle_client_requests(
     processing_sender: Sender<(RequestPayload, Sender<BankResponse>)>,
 ) -> Result<(), ProcessingErrorsResult> {
     loop {
-        debug!("waiting for client {:?}", stream.peer_addr()?);
+        debug!("waiting for client {:?} , thread : {:?}", stream.peer_addr()?, std::thread::current().id());
         let mut received: Vec<u8> = vec![];
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
