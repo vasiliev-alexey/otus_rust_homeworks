@@ -9,17 +9,17 @@ use scraper::{Html, Selector};
 const COURSES_KEY: &str = "COURSES_KEY";
 
 #[derive(Clone)]
-pub struct Service {
+pub struct DataService {
     client: redis::Client,
     source_file: String,
     course_pattern: String,
 }
 
-impl Service {
-    pub(crate) fn new(config: &AppConfig) -> Service {
+impl DataService {
+    pub(crate) fn new(config: &AppConfig) -> DataService {
         info!("Redis url: {}", config.redis_url);
         info!("Source file: {}", config.source_file);
-        Service {
+        DataService {
             client: redis::Client::open(&*config.redis_url).unwrap(),
             source_file: config.source_file.clone(),
             course_pattern: config.course_pattern.clone(),

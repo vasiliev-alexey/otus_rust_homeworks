@@ -7,7 +7,7 @@ use std::error::Error;
 
 use crate::bot_service::run_bot;
 use crate::config_service::read_config;
-use crate::data_service::Service;
+use crate::data_service::DataService;
 
 use tokio::task;
 
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("Starting buttons bot...");
 
     let config = read_config()?;
-    let serv = Service::new(&config);
+    let serv = DataService::new(&config);
     let data_serv = serv.clone();
 
     debug!(

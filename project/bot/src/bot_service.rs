@@ -1,7 +1,7 @@
 use log::debug;
 use std::error::Error;
 
-use crate::data_service::Service;
+use crate::data_service::DataService;
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::*,
@@ -29,7 +29,7 @@ enum Command {
 }
 
 // #[tokio::main]
-pub(crate) async fn run_bot(serv: Service) -> Result<(), Box<dyn Error>> {
+pub(crate) async fn run_bot(serv: DataService) -> Result<(), Box<dyn Error>> {
     log::info!("Starting buttons bot...");
     let map = dptree::deps![serv.clone()];
 
@@ -49,7 +49,7 @@ pub(crate) async fn run_bot(serv: Service) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn make_keyboard(srv: Service) -> InlineKeyboardMarkup {
+fn make_keyboard(srv: DataService) -> InlineKeyboardMarkup {
     let mut keyboard: Vec<Vec<InlineKeyboardButton>> = vec![];
     let groups = srv.data();
 
@@ -70,7 +70,7 @@ async fn message_handler(
     bot: Bot,
     msg: Message,
     me: Me,
-    srv: Service,
+    srv: DataService,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(text) = msg.text() {
         match BotCommands::parse(text, me.username()) {
@@ -104,16 +104,16 @@ async fn message_handler(
 async fn inline_query_handler(
     bot: Bot,
     q: InlineQuery,
-    srv: Service,
+    srv: DataService,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let choise_group = InlineQueryResultArticle::new(
+    let choice_group = InlineQueryResultArticle::new(
         "0",
         "Выберете группу",
         InputMessageContent::Text(InputMessageContentText::new("Список групп:")),
     )
     .reply_markup(make_keyboard(srv));
 
-    bot.answer_inline_query(q.id, vec![choise_group.into()])
+    bot.answer_inline_query(q.id, vec![choice_group.into()])
         .await?;
 
     Ok(())
@@ -122,7 +122,7 @@ async fn inline_query_handler(
 async fn callback_handler(
     bot: Bot,
     q: CallbackQuery,
-    srv: Service,
+    srv: DataService,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(selected_course) = q.data {
         log::info!("You chose: {}", selected_course);
