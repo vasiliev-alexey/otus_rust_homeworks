@@ -13,7 +13,8 @@ members = [
     "homeworks/hw10",
     "homeworks/hw11",
     "homeworks/hw12",
-    "practice"
+    "practice",
+    "project/bot",
 ]
 
 resolver = "2"

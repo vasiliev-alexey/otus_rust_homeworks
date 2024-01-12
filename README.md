@@ -35,3 +35,9 @@
 * [Практика на владение и заимствование](./docs/Practice_1.md)
 
 </details>
+
+<details>
+<summary>Проект</summary>
+
+* [Проект](./project/Readme.md)
+</details>
