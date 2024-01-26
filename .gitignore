@@ -92,5 +92,5 @@ fabric.properties
 
 .idea/
 
-
-
+*.profraw
+/project/redis.conf
