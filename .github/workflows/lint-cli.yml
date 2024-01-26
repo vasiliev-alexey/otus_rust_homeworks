@@ -3,7 +3,21 @@ name: sanitizer for homework tasks
 on:
   push:
     branches:
-      - hw*
+      - hw1
+      - hw2
+      - hw3
+      - hw4
+      - hw5
+      - hw6
+      - hw7
+      - hw8
+      - hw9
+      - hw10
+      - hw11
+      - hw12
+
+
+
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 

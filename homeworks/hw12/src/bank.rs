@@ -15,7 +15,7 @@ pub type Result<T, E = BankError> = std::result::Result<T, E>;
 
 const MONEY_ZERO: Money = 0.0;
 
-type TransactionId = String;
+pub type TransactionId = String;
 
 #[derive(Default)]
 pub struct Bank {
@@ -78,7 +78,7 @@ pub struct AmountNegativeError {
 }
 
 #[derive(Debug, Error, PartialEq)]
-#[error("Insufficient funds")]
+#[error("Insufficient funds for account `{0}` available `{1}` requested `{2}`", .account, .amount, .balance)]
 pub struct InsufficientFundsError {
     account: String,
     amount: Money,

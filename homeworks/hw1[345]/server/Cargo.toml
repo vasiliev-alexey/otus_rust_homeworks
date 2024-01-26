@@ -1,0 +1,29 @@
+[package]
+name = "server"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1.0.107"
+serde = "1.0.188"
+log = "^0.4.20"
+env_logger = "^0.10.0"
+
+shared =  {path = "../shared"}
+bank_engine = {path = "../../hw12"}

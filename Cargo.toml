@@ -13,6 +13,9 @@ members = [
     "homeworks/hw10",
     "homeworks/hw11",
     "homeworks/hw12",
+    "homeworks/hw1[345]/shared",
+    "homeworks/hw1[345]/client",
+    "homeworks/hw1[345]/server",
     "practice",
     "project/bot",
 ]
