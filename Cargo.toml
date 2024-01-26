@@ -16,13 +16,12 @@ members = [
     "homeworks/hw1[345]/shared",
     "homeworks/hw1[345]/client",
     "homeworks/hw1[345]/server",
-    "practice"
+    "practice",
+    "project/bot",
 ]
 
 resolver = "2"
 
-exclude = [
-    "homeworks/hw1[345]"]
 
 [workspace.package]
 version = "1.2.3"

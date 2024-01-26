@@ -33,4 +33,11 @@
 
 * [Практика написания кода](./docs/PROBLEMS.md)
 * [Практика на владение и заимствование](./docs/Practice_1.md)
+
+</details>
+
+<details>
+<summary>Проект</summary>
+
+* [Проект](./project/Readme.md)
 </details>
