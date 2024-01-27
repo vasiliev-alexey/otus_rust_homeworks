@@ -15,6 +15,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         "successfully created account with transaction id: {}",
         transaction_id
     );
-    client.shutdown();
     Ok(())
 }

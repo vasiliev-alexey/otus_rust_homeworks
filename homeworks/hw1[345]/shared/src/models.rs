@@ -1,4 +1,5 @@
 use crate::constants::MAX_CHUNK_BYTE_SIZE;
+use crate::errors::ProcessingErrorsResult;
 use bank_engine::bank::{Operation, TransactionId};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -41,7 +42,7 @@ pub enum RequestPayload {
     CloseConnection,
 
     /// Represents a get history request without any parameters.
-    GetHistory(),
+    GetHistory,
 
     /// Represents a get history for account request with the specified account identifier.
     GetHistoryForAccount(String),
@@ -74,6 +75,8 @@ pub enum ResponsePayload {
 
     /// Indicates that a transfer was successful.
     TransferSuccess(TransactionId),
+    /// Indicates an error occurred while making a transfer to same account
+    SomeAccountError(String),
 
     /// Represents the balance of an account with the specified amount.
     Balance(f64),
@@ -138,11 +141,12 @@ pub struct Response {
     pub payload: ResponsePayload,
 }
 
-pub type ResponseResult = Result<Response, std::io::Error>;
+// pub type ResponseResult = Result<Response, std::io::Error>;
+pub type ResponseResult = Result<Response, ProcessingErrorsResult>;
 
 impl Response {
-    pub fn new(stream: &mut impl Read) -> Result<Self, std::io::Error> {
-        let mut received: Vec<u8> = vec![];
+    pub fn read(stream: &mut impl Read) -> Result<Self, std::io::Error> {
+        let mut received: Vec<u8> = Vec::with_capacity(MAX_CHUNK_BYTE_SIZE);
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
             let bytes_read = stream.read(&mut chunk)?;

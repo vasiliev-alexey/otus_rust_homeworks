@@ -14,3 +14,15 @@ pub enum ConnectError {
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
 }
+
+#[derive(Debug, Error)]
+pub enum ProcessingErrorsResult {
+    /// An RecvError error with the specified underlying error.
+    #[error("RecvError error: {0}")]
+    RecvError(#[from] std::sync::mpsc::RecvError),
+    /// An IO error with the specified underlying error.
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+    #[error("TypeMismatchError error: {0}")]
+    TypeMismatchError(String),
+}

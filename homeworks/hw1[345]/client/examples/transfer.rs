@@ -23,6 +23,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Transfer 100.0 from "Alice" to "Bob".
     client.transfer("Alice", "Bob", 100.0)?;
-    client.shutdown();
     Ok(())
 }

@@ -32,6 +32,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Log the balances of "Alice".
     info!("Alice balance: {}", alice_balance);
-    client.shutdown();
     Ok(())
 }
