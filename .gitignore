@@ -92,5 +92,5 @@ fabric.properties
 
 .idea/
 
-
-/homeworks/hw12/*
+*.profraw
+/project/redis.conf
