@@ -1,8 +1,8 @@
-use log::{debug, error, info, warn};
-use std::io::Read;
-use std::net::{Shutdown, TcpListener, TcpStream};
+use log::{debug, error, info};
 use std::sync::mpsc;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 use bank_engine::bank::BankResponse::Transaction;
 use bank_engine::bank::{Bank, BankError, BankResponse, BankTrait};
@@ -19,12 +19,13 @@ use RequestPayload::*;
 /// The main function of the program.
 ///
 /// It initializes the logging, creates a new `Bank` object, binds a TCP listener to the specified server path,
-/// starts processing thread for Bank
-/// and starts accepting incoming connections. For each incoming connection spawns new thread for processing requests.
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// start p processing thread for Bank
+/// and starts accepting incoming connections. For each incoming connection spawn new thread for processing requests.
+#[tokio::main(worker_threads = 1)]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(LOG_LEVEL));
 
-    let listener = TcpListener::bind(SERVER_ADDRESS).unwrap();
+    let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
     info!(
         "Server listening on port {}",
         SERVER_ADDRESS.split(':').nth(1).unwrap_or_default()
@@ -32,13 +33,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel::<(RequestPayload, Sender<BankResponse>)>();
     create_processing_thread(rx);
-    listener.set_nonblocking(true).unwrap();
+    // listener.set_nonblocking(true).unwrap();
     loop {
-        if let Some(stream) = try_accept(&listener) {
+        if let Some(stream) = try_accept(&listener).await {
             let tx = tx.clone();
-            std::thread::spawn(move || {
-                if let Err(ProcessingErrorsResult::Io(data)) = handle_client_requests(stream, tx) {
-                    error!("{}", data)
+            tokio::spawn(async move {
+                match handle_client_requests(stream, tx).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        if !e.to_string().contains("Resource temporarily unavailable") {
+                            error!("{}", e);
+                        }
+                    }
                 }
             });
         }
@@ -85,7 +91,7 @@ fn create_processing_thread(chanel_connector: Receiver<(RequestPayload, Sender<B
                         let balance = bank.get_balance(account.as_str());
                         callback_chanel.send(BankResponse::Balance(balance))
                     }
-                    GetHistory => {
+                    GetHistory() => {
                         let history = bank.get_history();
                         callback_chanel.send(BankResponse::History(history))
                     }
@@ -114,44 +120,41 @@ fn create_processing_thread(chanel_connector: Receiver<(RequestPayload, Sender<B
 /// Returns an `Option<TcpStream>` representing the accepted TCP stream if successful,
 /// or `None` if the operation would block or an error occurred.
 ///
-fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
-    match listener.accept() {
+async fn try_accept(listener: &TcpListener) -> Option<TcpStream> {
+    match listener.accept().await {
         Ok((stream, addr)) => {
             println!("Accepted connection with {}", addr);
             Some(stream)
         }
         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => None,
         Err(e) => {
-            warn!("Failed to accept a connection: {}", e);
+            println!("Failed to accept a connection: {}", e);
             None
         }
     }
 }
 
-/// Handles client requests by reading data from the provided TCP stream and processing the requests accordingly.
+/// Handles a client connection.
 ///
-/// The function takes a mutable reference to a `TcpStream` object and a `Sender<(RequestPayload, Sender<BankResponse>)>` object as arguments.
-/// It returns a `Result<(), ProcessingErrorsResult>`, indicating success or failure of the handling process.
+/// This function takes a mutable reference to a `Bank` object and a `TcpStream` object,
+/// and performs some actions to handle the client connection.
 ///
-/// The function enters an infinite loop and waits for incoming data from the client. It reads the data from the stream in chunks and appends it to a vector.
-/// If no data is received, the function returns `Ok(())` to indicate that the connection has been closed.
-/// Otherwise, it tries to deserialize the received data into a `Request` object. If deserialization fails, it sends a deserialization error response to the client.
+/// # Arguments
 ///
-/// After successful deserialization, the function matches the payload of the `Request` object and calls the corresponding processing function.
-/// The processing functions are responsible for handling different types of requests such as ping, account creation, deposit, withdrawal, transfer, balance retrieval, history retrieval, and connection closure.
+/// * `stream` - A mutable reference to a `TcpStream` object.
+/// * `processing_sender` - A mutable reference to a `Sender<(RequestPayload, Sender<BankResponse>)>`
 ///
-/// Once the request is processed, the function sends the response back to the client using the `send` method of the `Response` object.
-/// The loop continues until the connection is closed by the client.
-fn handle_client_requests(
+/// ```
+async fn handle_client_requests(
     mut stream: TcpStream,
     processing_sender: Sender<(RequestPayload, Sender<BankResponse>)>,
 ) -> Result<(), ProcessingErrorsResult> {
     loop {
-        debug!("waiting for client {:?}", stream.peer_addr()?);
+        debug!("waiting for client {:?} , thread : {:?}", stream.peer_addr()?, std::thread::current().id());
         let mut received: Vec<u8> = vec![];
         let mut chunk = [0u8; MAX_CHUNK_BYTE_SIZE];
         loop {
-            let bytes_read = stream.read(&mut chunk)?;
+            let bytes_read = stream.read(&mut chunk).await?;
             received.extend_from_slice(&chunk[..bytes_read]);
             if bytes_read < MAX_CHUNK_BYTE_SIZE {
                 break;
@@ -167,7 +170,7 @@ fn handle_client_requests(
                 payload: ResponsePayload::DeserializeError(err.to_string()),
             };
             error!("Deserialize error: {:?}", err);
-            resp.send(&mut stream)?;
+            resp.send(&mut stream).await?;
         }
         let req = req.unwrap();
         let resp = match &req.payload {
@@ -177,16 +180,16 @@ fn handle_client_requests(
             Withdraw(_) => process_withdraw(req.payload, &processing_sender),
             Transfer(_) => process_transfer(req.payload, &processing_sender),
             GetBalance(_) => process_get_balance(req.payload, &processing_sender),
-            GetHistory => process_get_history(req.payload, &processing_sender),
+            GetHistory() => process_get_history(req.payload, &processing_sender),
             GetHistoryForAccount(_) => process_history_for_account(req.payload, &processing_sender),
             CloseConnection => {
                 info!("Closing connection with {}", stream.peer_addr()?);
-                stream.shutdown(Shutdown::Both)?;
+                stream.shutdown().await?;
                 return Ok(());
             }
         }?;
         debug!("send data to client");
-        resp.send(&mut stream)?;
+        resp.send(&mut stream).await?;
     }
 }
 
